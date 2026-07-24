@@ -18,20 +18,31 @@
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
         <span class="navbar-toggler-icon"></span>
       </button>
+      {% set nav = active_nav | default('') %}
+      {% macro navlink(id, href, label, needs_tournament=false) %}
+        {% if needs_tournament and tournament is none %}
+          <li class="nav-item"><span class="nav-link disabled" tabindex="-1" aria-disabled="true"
+              title="Create and open a tournament first (Setup)">{{ label }}</span></li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav==id }}" href="{{ href }}">{{ label }}</a></li>
+        {% endif %}
+      {% endmacro %}
+      {% macro divider() %}<li class="nav-item d-none d-lg-flex align-items-center"><span class="nav-divider"></span></li>{% endmacro %}
+
       <div class="collapse navbar-collapse" id="nav">
-        <ul class="navbar-nav me-auto">
-          {% set nav = active_nav | default('') %}
-          {# Ordered to follow the natural workflow: set up, take wagers, watch,
-             look things up, enter results, pay out, report, then admin. #}
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='setup' }}" href="/setup">Setup</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='cashier' }}" href="/cashier">Cashier</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='dashboard' }}" href="/">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='customers' }}" href="/customers">Customers</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='ledger' }}" href="/ledger">Ledger</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='results' }}" href="/results">Results</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='payouts' }}" href="/payouts">Payouts</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='reports' }}" href="/reports">Reports</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='admin' }}" href="/admin">Admin</a></li>
+        {# Grouped by role: PREPARE | RUN THE EVENT (needs a tournament) | MANAGE #}
+        <ul class="navbar-nav me-auto align-items-lg-center">
+          {{ navlink('setup', '/setup', 'Setup') }}
+          {{ divider() }}
+          {{ navlink('cashier', '/cashier', 'Cashier', true) }}
+          {{ navlink('dashboard', '/', 'Dashboard', true) }}
+          {{ navlink('ledger', '/ledger', 'Ledger', true) }}
+          {{ navlink('results', '/results', 'Results', true) }}
+          {{ navlink('payouts', '/payouts', 'Payouts', true) }}
+          {{ navlink('reports', '/reports', 'Reports', true) }}
+          {{ divider() }}
+          {{ navlink('customers', '/customers', 'Customers') }}
+          {{ navlink('admin', '/admin', 'Admin') }}
         </ul>
         {% if tournament %}
         <span class="navbar-text text-white">

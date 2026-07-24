@@ -17,6 +17,18 @@ body {
   letter-spacing: 0.3px;
 }
 
+/* Subtle separators between nav groups (prepare | run event | manage). */
+.nav-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.35);
+  margin: 0 0.45rem;
+}
+.navbar-dark .nav-link.disabled {
+  color: rgba(255, 255, 255, 0.4) !important;
+  cursor: not-allowed;
+}
+
 .bg-brand { background-color: var(--brand) !important; }
 .text-brand { color: var(--brand) !important; }
 .btn-brand {
@@ -80,13 +92,34 @@ input:focus-visible, select:focus-visible {
   outline-offset: 2px;
 }
 
-/* Setup wizard stepper. */
-.wizard-steps { list-style: none; display: flex; gap: 0.5rem; padding: 0; flex-wrap: wrap; }
-.wizard-steps li {
-  padding: 0.35rem 0.75rem; border-radius: 999px; background: #e9ecef; font-size: 0.9rem;
+/* Setup progress trail — a non-interactive indicator, NOT buttons/tabs.
+   Reads like "Tournament details › Teams & players › Open wagering". */
+.wizard-steps {
+  list-style: none;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0;
+  margin: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  color: #6c757d;
+  font-size: 0.9rem;
+  cursor: default;
 }
-.wizard-steps li.active { background: var(--brand); color: #fff; font-weight: 600; }
-.wizard-steps li.done { background: #cfe8db; color: var(--brand-dark); }
+.wizard-steps li {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  background: none;
+}
+.wizard-steps li:not(:last-child)::after {
+  content: "›";
+  margin: 0 0.5rem;
+  color: #adb5bd;
+}
+.wizard-steps li.active { color: var(--brand); font-weight: 700; }
+.wizard-steps li.done { color: #198754; }
+.wizard-steps li.done::before { content: "✓\00a0"; }
 
 @media print {
   .no-print, .navbar, .btn { display: none !important; }

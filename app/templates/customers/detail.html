@@ -1,12 +1,25 @@
 {% extends "base.html" %}
 {% block title %}{{ customer.name }}{% endblock %}
 {% block content %}
+<div class="mb-2"><a href="/customers" class="btn btn-link px-0">← All customers</a></div>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">{{ customer.name }}</h1>
   <div>
     <a href="/customers/{{ customer.id }}/edit" class="btn btn-outline-secondary">Edit</a>
     <a href="/cashier?customer_id={{ customer.id }}" class="btn btn-brand">Take a wager</a>
+    <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#del-customer">Delete</button>
   </div>
+</div>
+<div class="collapse" id="del-customer">
+  <form method="post" action="/customers/{{ customer.id }}/delete" class="card card-body mb-3 border-danger"
+        data-confirm="Delete {{ customer.name }}? This cannot be undone.">
+    <div class="row g-2 align-items-end">
+      <div class="col-auto"><label class="form-label small mb-0">Administrator PIN (if set)</label>
+        <input name="admin_pin" class="form-control form-control-sm"></div>
+      <div class="col-auto"><button class="btn btn-danger">Confirm delete</button></div>
+    </div>
+    <div class="form-text">A customer with wagers on record can't be deleted — void their wagers first.</div>
+  </form>
 </div>
 
 <div class="row g-3">

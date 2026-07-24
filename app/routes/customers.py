@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.models import Customer
-from app.routes.deps import base_context, operator_name
+from app.routes.deps import admin_pin_ok, base_context, operator_name
 from app.services import customers as customer_service
 from app.services.customers import CustomerError
 from app.templating import flash, render
@@ -59,7 +59,41 @@ def create(
     flash(request, f"Customer '{customer.name}' saved.")
     if return_to == "cashier":
         return RedirectResponse(f"/cashier?customer_id={customer.id}", status_code=303)
-    return RedirectResponse(f"/customers/{customer.id}", status_code=303)
+    # Otherwise return to the customer list (where the new entry now appears),
+    # not the single detail page.
+    return RedirectResponse("/customers", status_code=303)
+
+
+@router.post("/clear")
+def clear_all(request: Request, session: Session = Depends(get_session), admin_pin: str = Form("")):
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN.", "danger")
+        return RedirectResponse("/customers", status_code=303)
+    deleted, kept = customer_service.clear_unused_customers(session, operator=operator_name(request))
+    msg = f"Removed {deleted} unused customer(s)."
+    if kept:
+        msg += f" Kept {kept} that have wagers on record."
+    flash(request, msg, "warning" if kept else "success")
+    return RedirectResponse("/customers", status_code=303)
+
+
+@router.post("/{customer_id}/delete")
+def delete(request: Request, customer_id: int, session: Session = Depends(get_session),
+           admin_pin: str = Form("")):
+    customer = session.get(Customer, customer_id)
+    if customer is None:
+        flash(request, "Customer not found.", "danger")
+        return RedirectResponse("/customers", status_code=303)
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN.", "danger")
+        return RedirectResponse(f"/customers/{customer_id}", status_code=303)
+    try:
+        customer_service.delete_customer(session, customer, operator=operator_name(request))
+    except CustomerError as exc:
+        flash(request, str(exc), "danger")
+        return RedirectResponse(f"/customers/{customer_id}", status_code=303)
+    flash(request, "Customer deleted.")
+    return RedirectResponse("/customers", status_code=303)
 
 
 @router.get("/{customer_id}")

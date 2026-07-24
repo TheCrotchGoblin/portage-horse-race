@@ -3,7 +3,21 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Customers</h1>
-  <a href="/customers/new" class="btn btn-brand">New customer</a>
+  <div>
+    <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#clear-unused">Clear unused</button>
+    <a href="/customers/new" class="btn btn-brand">New customer</a>
+  </div>
+</div>
+<div class="collapse" id="clear-unused">
+  <form method="post" action="/customers/clear" class="card card-body mb-3 border-danger"
+        data-confirm="Remove every customer who has no wagers? Customers with wagers on record are kept.">
+    <div class="row g-2 align-items-end">
+      <div class="col-auto"><label class="form-label small mb-0">Administrator PIN (if set)</label>
+        <input name="admin_pin" class="form-control form-control-sm"></div>
+      <div class="col-auto"><button class="btn btn-danger">Remove unused customers</button></div>
+    </div>
+    <div class="form-text">Only customers with no wagers are removed — anyone tied to records is kept.</div>
+  </form>
 </div>
 
 <form method="get" action="/customers" class="mb-3">

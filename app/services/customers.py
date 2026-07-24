@@ -91,6 +91,34 @@ def update_customer(
     return customer
 
 
+def delete_customer(session: Session, customer: Customer, *, operator: str | None = None) -> None:
+    """Delete a customer that has no wagers. Customers tied to financial records
+    are kept (their wagers must be voided first)."""
+    count = session.scalar(select(func.count(Wager.id)).where(Wager.customer_id == customer.id)) or 0
+    if count:
+        raise CustomerError(
+            f"'{customer.name}' has wagers on record and can't be deleted. Void those wagers first."
+        )
+    audit.record(session, action_type="customer_deleted", actor=operator,
+                 entity_type="customer", entity_id=customer.id, before={"name": customer.name})
+    session.delete(customer)
+
+
+def clear_unused_customers(session: Session, *, operator: str | None = None) -> tuple[int, int]:
+    """Delete every customer with no wagers. Returns (deleted, kept_with_wagers)."""
+    deleted = kept = 0
+    for customer in session.scalars(select(Customer)).all():
+        has_wagers = session.scalar(select(func.count(Wager.id)).where(Wager.customer_id == customer.id)) or 0
+        if has_wagers:
+            kept += 1
+        else:
+            session.delete(customer)
+            deleted += 1
+    audit.record(session, action_type="customers_cleared", actor=operator,
+                 after={"deleted": deleted, "kept_with_wagers": kept})
+    return deleted, kept
+
+
 def find_duplicates(
     session: Session,
     *,
