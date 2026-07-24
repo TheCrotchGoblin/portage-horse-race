@@ -1,6 +1,6 @@
 [project]
 name = "portage-horse-race"
-version = "0.2.2"
+version = "0.3.0"
 description = "Local-first wager management app for the Portage Men's Open horse race"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,6 +11,7 @@ dependencies = [
     "jinja2>=3.1",
     "python-multipart>=0.0.9",
     "itsdangerous>=2.2",
+    "pywebview>=5.0",
 ]
 
 [project.optional-dependencies]

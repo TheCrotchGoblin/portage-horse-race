@@ -81,6 +81,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SessionMiddleware, secret_key=settings.session_secret(), same_site="lax")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+    @app.middleware("http")
+    async def no_store_html(request, call_next):
+        # Never let the browser cache a rendered page — otherwise a stale copy
+        # (e.g. the cashier screen from before wagering was opened) keeps showing
+        # old status. Static assets under /static are still cacheable.
+        response = await call_next(request)
+        if response.headers.get("content-type", "").startswith("text/html"):
+            response.headers["Cache-Control"] = "no-store, must-revalidate"
+        return response
+
     # Routers are registered here as each feature phase lands.
     from app.routes import pages, setup as setup_routes, customers, cashier, ledger, results, payouts, reports, admin
 

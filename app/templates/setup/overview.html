@@ -22,11 +22,9 @@
         <span>
           <span class="badge {{ 'bg-success' if team.wagering_status=='OPEN' else 'bg-secondary' }}">
             Wagering {{ wagering_label(team.wagering_status) }}</span>
-          {% if not locked %}
           <form method="post" action="/setup/teams/{{ team.id }}/delete" class="d-inline"
                 data-confirm="Remove team {{ team.name }} and its players?">
             <button class="btn btn-sm btn-outline-danger">Remove</button></form>
-          {% endif %}
         </span>
       </div>
       <div class="card-body">
@@ -35,10 +33,8 @@
           {% for p in team.players %}
           <span class="badge bg-light text-dark border p-2">
             {{ p.name }}
-            {% if not locked %}
             <form method="post" action="/setup/players/{{ p.id }}/delete" class="d-inline">
               <button class="btn-close btn-sm ms-1" style="font-size:.6rem" title="Remove"></button></form>
-            {% endif %}
           </span>
           {% endfor %}
         </div>
@@ -55,15 +51,14 @@
     </div>
     {% endfor %}
 
-    {% if not locked %}
     <form method="post" action="/setup/teams" class="card card-body shadow-sm">
       <label class="form-label fw-semibold">Add a team</label>
       <div class="input-group">
-        <input name="team_name" class="form-control" placeholder="Team A" required>
+        <input name="team_name" class="form-control" placeholder="e.g. The Ringers" required>
         <button class="btn btn-brand">Add team</button>
       </div>
+      <div class="form-text">You can add teams any time — even after wagering has opened.</div>
     </form>
-    {% endif %}
   </div>
 
   <!-- Config + open/close -->

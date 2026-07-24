@@ -17,15 +17,16 @@ itself up automatically so a volunteer can't lose the day's records.
 1. Download **`PortageHorseRace-Setup-<version>.exe`** from the
    [latest release](../../releases/latest).
 2. Double-click it and click through the installer (no administrator password needed).
-3. Launch **Portage Horse Race** from the desktop or Start Menu. It opens in your web browser.
-4. To stop it, close the small app window (or the browser tab and window).
+3. Launch **Portage Horse Race** from the desktop or Start Menu. It opens in its own window.
+4. To stop it, just close the window.
 
 Your data lives in `%LOCALAPPDATA%\PortageHorseRace` and is **kept when you install an update**.
 
 ## Using it (quick guide)
 
 1. **Setup** — Create a tournament (name, $5 entry, 15% club, 60/30/10 split are pre-filled),
-   add your two teams and their players, then **Open wagering**.
+   add one or more teams and their players, then **Open wagering**. You can add more teams
+   any time, even after wagering has opened.
 2. **Cashier** — Find or add the customer → pick the team → pick the player →
    choose how many entries → take the cash → **Record payment**. The next sale starts
    automatically.

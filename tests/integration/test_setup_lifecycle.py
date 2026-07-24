@@ -48,6 +48,21 @@ def test_reopen_blocked_while_another_active(client):
     assert "Archive the current tournament" in r.text
 
 
+def test_can_add_team_after_wagering_opened(client):
+    """Teams/players can be added mid-event (spread the betting), and pages aren't cached."""
+    make_tournament(client)  # creates 2 teams, players, opens wagering
+    # Add a third team AFTER wagering is open — the button/flow must still work.
+    r = client.post("/setup/teams", data={"team_name": "The Ringers"}, follow_redirects=True)
+    assert r.status_code == 200
+    with database.SessionLocal() as s:
+        names = [t.name for t in s.scalars(select(Team).order_by(Team.id)).all()]
+        assert "The Ringers" in names
+    # The setup page still offers the add-team control (not hidden after open/sales).
+    assert "Add a team" in client.get("/setup").text
+    # HTML responses must not be cached (prevents stale "closed" screens).
+    assert "no-store" in client.get("/cashier").headers.get("cache-control", "")
+
+
 def test_single_team_can_open(client):
     """A tournament may run with just one team (per the tournament organiser)."""
     client.post("/setup/new", data={

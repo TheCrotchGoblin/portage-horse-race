@@ -160,14 +160,18 @@ def add_players(session: Session, team: Team, names: list[str]) -> list[Player]:
 
 
 def delete_player(session: Session, tournament: Tournament, player: Player) -> None:
-    if has_sales(session, tournament.id):
-        raise SetupError("Players cannot be removed after sales have started (their wagers must be kept).")
+    # Adding players is always allowed; removal is blocked only if THIS player
+    # already has wagers (their financial records must be kept).
+    count = session.scalar(select(func.count(Wager.id)).where(Wager.player_id == player.id)) or 0
+    if count:
+        raise SetupError(f"'{player.name}' already has wagers, so they can't be removed. Void those wagers first.")
     session.delete(player)
 
 
 def delete_team(session: Session, tournament: Tournament, team: Team) -> None:
-    if has_sales(session, tournament.id):
-        raise SetupError("Teams cannot be removed after sales have started.")
+    count = session.scalar(select(func.count(Wager.id)).where(Wager.team_id == team.id)) or 0
+    if count:
+        raise SetupError(f"'{team.name}' already has wagers, so it can't be removed. Void those wagers first.")
     session.delete(team)
 
 

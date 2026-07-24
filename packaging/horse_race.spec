@@ -1,11 +1,11 @@
 # PyInstaller spec for Portage Horse Race (one-folder build).
 # Build:  pyinstaller packaging/horse_race.spec --noconfirm
-from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 hiddenimports = (
     collect_submodules("uvicorn")
     + collect_submodules("anyio")
-    + ["app.main"]
+    + ["app.main", "clr"]
 )
 
 datas = [
@@ -13,10 +13,19 @@ datas = [
     ("../app/static", "app/static"),
 ]
 
+# pywebview (WebView2 via pythonnet) ships backends + .NET assets to bundle.
+_binaries = []
+for _pkg in ("webview", "pythonnet", "clr_loader"):
+    _d, _b, _h = collect_all(_pkg)
+    datas += _d
+    _binaries += _b
+    hiddenimports += _h
+hiddenimports += ["clr", "clr_loader", "pythonnet"]
+
 a = Analysis(
     ["../run.py"],
     pathex=["."],
-    binaries=[],
+    binaries=_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

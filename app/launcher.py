@@ -1,13 +1,13 @@
-"""Desktop launcher: single-instance, localhost server, auto-open browser.
+"""Desktop launcher: a native app window hosting the local server.
 
-This is what a double-clicked shortcut runs. It:
-  * ensures data directories exist,
-  * refuses to start a second copy against the same database (spec §10.2),
-  * starts the FastAPI app on 127.0.0.1 at a fixed port,
-  * opens the default browser to the app once it is listening,
-  * writes logs locally.
-
-The end user never sees a command prompt or types a URL.
+Double-clicking runs this. It:
+  * gives the process real stdout/stderr when launched without a console,
+  * starts the FastAPI app on 127.0.0.1 at a fixed port (unless one is already
+    running — single-instance),
+  * opens a native desktop window (WebView2) showing the app — no browser, no
+    address bar,
+  * falls back to the default browser if a native window can't be created,
+  * shuts the server down cleanly when the window closes.
 """
 from __future__ import annotations
 
@@ -20,36 +20,19 @@ import webbrowser
 
 import uvicorn
 
+from app import APP_NAME
 from app.config import settings
 
 logger = logging.getLogger("horse_race.launcher")
 
-
-def _port_in_use(host: str, port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(0.3)
-        return sock.connect_ex((host, port)) == 0
-
-
-def _open_browser_when_ready(host: str, port: int, timeout: float = 15.0) -> None:
-    url = f"http://{host}:{port}/"
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if _port_in_use(host, port):
-            webbrowser.open(url)
-            return
-        time.sleep(0.25)
-    # Open anyway as a last resort so the user isn't stuck.
-    webbrowser.open(url)
+WINDOW_TITLE = APP_NAME
 
 
 def _ensure_std_streams() -> None:
     """Give the process real stdout/stderr when launched without a console.
 
-    A windowed PyInstaller build (double-clicked, no console) has
-    ``sys.stdout`` / ``sys.stderr`` set to None. uvicorn's log formatter calls
-    ``sys.stdout.isatty()``, which then crashes. Point the streams at a log file
-    so logging works and nothing sees a None stream.
+    A windowed build (double-clicked) has ``sys.stdout`` / ``sys.stderr`` = None;
+    uvicorn's log formatter calls ``sys.stdout.isatty()`` and crashes otherwise.
     """
     if sys.stdout is not None and sys.stderr is not None:
         return
@@ -61,30 +44,62 @@ def _ensure_std_streams() -> None:
         sys.stderr = log
 
 
+def _port_in_use(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.3)
+        return sock.connect_ex((host, port)) == 0
+
+
+def _start_server(app, host: str, port: int) -> uvicorn.Server:
+    """Run uvicorn in a background thread and wait until it is serving."""
+    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    server = uvicorn.Server(config)
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    for _ in range(200):  # up to ~10s
+        if getattr(server, "started", False) or not thread.is_alive():
+            break
+        time.sleep(0.05)
+    return server
+
+
 def main() -> int:
     _ensure_std_streams()
     settings.ensure_dirs()
     host, port = settings.host, settings.port
+    url = f"http://{host}:{port}/"
 
-    # Single-instance guard: if the app is already serving, just focus it.
-    if _port_in_use(host, port):
-        logger.info("An instance is already running; opening the browser.")
-        webbrowser.open(f"http://{host}:{port}/")
-        return 0
+    # Single instance: only start a server if one isn't already running.
+    server: uvicorn.Server | None = None
+    if not _port_in_use(host, port):
+        from app.main import app as fastapi_app
 
-    threading.Thread(target=_open_browser_when_ready, args=(host, port), daemon=True).start()
+        server = _start_server(fastapi_app, host, port)
+    else:
+        logger.info("An instance is already serving; opening another window to it.")
 
-    # Import here so create_app() (and its startup backup) runs now, after the
-    # single-instance check. Pass the app object (not an import string) so the
-    # frozen PyInstaller build does not rely on re-importing by name.
-    from app.main import app as fastapi_app
+    try:
+        import webview
 
-    uvicorn.run(fastapi_app, host=host, port=port, log_level="info")
+        webview.create_window(WINDOW_TITLE, url, width=1240, height=840, min_size=(960, 680))
+        webview.start()  # blocks until the window is closed
+    except Exception:
+        logger.exception("Native window unavailable; opening the default browser instead")
+        webbrowser.open(url)
+        if server is not None:
+            try:
+                while getattr(server, "started", False):
+                    time.sleep(0.5)
+            except KeyboardInterrupt:
+                pass
+    finally:
+        if server is not None:
+            server.should_exit = True
     return 0
 
 
 if __name__ == "__main__":
     import multiprocessing
 
-    multiprocessing.freeze_support()  # safe no-op in dev; required in frozen builds
+    multiprocessing.freeze_support()
     sys.exit(main())
