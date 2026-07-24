@@ -68,9 +68,26 @@ def players_for(session: Session, tournament_id: int) -> list[Player]:
     )
 
 
-def audit_entries(session: Session, tournament_id: int | None, limit: int = 300) -> list[AuditLog]:
-    stmt = select(AuditLog)
+def _audit_scope(stmt, tournament_id: int | None):
     if tournament_id is not None:
         stmt = stmt.where((AuditLog.tournament_id == tournament_id) | (AuditLog.tournament_id.is_(None)))
+    return stmt
+
+
+def audit_entries(session: Session, tournament_id: int | None, action_type: str | None = None,
+                  limit: int = 300) -> list[AuditLog]:
+    # Filter is applied IN THE QUERY (before the limit), so selecting an action
+    # can't miss older matching rows.
+    stmt = _audit_scope(select(AuditLog), tournament_id)
+    if action_type:
+        stmt = stmt.where(AuditLog.action_type == action_type)
     stmt = stmt.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(limit)
     return list(session.scalars(stmt).all())
+
+
+def audit_action_types(session: Session, tournament_id: int | None) -> list[str]:
+    """Distinct action types across the WHOLE log (not just the current page)."""
+    from sqlalchemy import distinct
+
+    stmt = _audit_scope(select(distinct(AuditLog.action_type)), tournament_id)
+    return sorted(a for a in session.scalars(stmt).all() if a)

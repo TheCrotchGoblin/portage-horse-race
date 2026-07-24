@@ -31,6 +31,7 @@ body {
 
 .bg-brand { background-color: var(--brand) !important; }
 .text-brand { color: var(--brand) !important; }
+.border-brand { border-color: var(--brand) !important; }
 .btn-brand {
   background-color: var(--brand);
   border-color: var(--brand);

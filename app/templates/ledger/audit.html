@@ -3,9 +3,22 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Audit log</h1>
-  <a href="/ledger" class="btn btn-outline-secondary">Back to ledger</a>
+  <div>
+    <a href="/reports/export/audit" class="btn btn-outline-secondary">Export full log (CSV)</a>
+    <a href="/ledger" class="btn btn-outline-secondary">Back to ledger</a>
+  </div>
 </div>
 <p class="text-muted">Every material action is recorded here and can never be edited or removed.</p>
+<form method="get" action="/ledger/audit" class="mb-3 d-flex gap-2 align-items-end" style="max-width:420px">
+  <div class="flex-grow-1">
+    <label class="form-label small mb-0">Filter by action</label>
+    <select name="action" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">All actions</option>
+      {% for a in action_types %}<option value="{{ a }}" {{ 'selected' if action==a }}>{{ a }}</option>{% endfor %}
+    </select>
+  </div>
+  {% if action %}<a href="/ledger/audit" class="btn btn-outline-secondary btn-sm">Clear</a>{% endif %}
+</form>
 <div class="card shadow-sm">
   <table class="table table-sm mb-0">
     <thead><tr><th>Time</th><th>Who</th><th>Action</th><th>Item</th><th>Reason / details</th></tr></thead>

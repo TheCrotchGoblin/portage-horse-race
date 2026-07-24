@@ -52,8 +52,10 @@ def ledger(
 
 
 @router.get("/ledger/audit")
-def audit(request: Request, session: Session = Depends(get_session)):
+def audit(request: Request, session: Session = Depends(get_session), action: str = ""):
     ctx = base_context(request, session, "ledger")
-    tournament = ctx["tournament"]
-    ctx["entries"] = ledger_service.audit_entries(session, tournament.id if tournament else None)
+    tid = ctx["tournament"].id if ctx["tournament"] else None
+    ctx["action_types"] = ledger_service.audit_action_types(session, tid)
+    ctx["entries"] = ledger_service.audit_entries(session, tid, action_type=action or None)
+    ctx["action"] = action
     return render(request, "ledger/audit.html", ctx)

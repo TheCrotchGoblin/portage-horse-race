@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from app.models import Payout, Placement, Team
 from app.models.enums import PayoutStatus
 from app.routes.deps import base_context
 from app.services import dashboard as dashboard_service
+from app.services import event_package
 from app.services import exports as export_service
 from app.templating import render
 
@@ -25,10 +26,16 @@ def _payout_totals(session: Session, team_id: int) -> dict:
         .group_by(Payout.status)
     ).all()
     by_status = {r[0]: {"count": int(r[1]), "cents": int(r[2])} for r in rows}
-    generated = sum(v["cents"] for v in by_status.values())
     paid = by_status.get(PayoutStatus.PAID, {}).get("cents", 0)
     unpaid = by_status.get(PayoutStatus.UNPAID, {}).get("cents", 0)
-    return {"generated": generated, "paid": paid, "unpaid": unpaid, "by_status": by_status}
+    reversed_ = by_status.get(PayoutStatus.REVERSED, {}).get("cents", 0)
+    held = by_status.get(PayoutStatus.HELD, {}).get("cents", 0)
+    return {
+        "generated": paid + unpaid + reversed_ + held,  # self-consistent breakdown
+        "paid": paid, "unpaid": unpaid, "reversed": reversed_, "held": held,
+        "outstanding": unpaid + reversed_ + held,
+        "by_status": by_status,
+    }
 
 
 @router.get("")
@@ -60,9 +67,11 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
             "gross": sum(c.financials.gross_cents for c in board.cards),
             "club": sum(c.financials.club_share_cents for c in board.cards),
             "pool": sum(c.financials.prize_pool_cents for c in board.cards),
-            "generated": sum(_payout_totals(session, c.team.id)["generated"] for c in board.cards),
-            "paid": sum(_payout_totals(session, c.team.id)["paid"] for c in board.cards),
-            "unpaid": sum(_payout_totals(session, c.team.id)["unpaid"] for c in board.cards),
+            "generated": sum(r["totals"]["generated"] for r in recon),
+            "paid": sum(r["totals"]["paid"] for r in recon),
+            "unpaid": sum(r["totals"]["unpaid"] for r in recon),
+            "reversed": sum(r["totals"]["reversed"] for r in recon),
+            "outstanding": sum(r["totals"]["outstanding"] for r in recon),
         }
         return render(request, "reports/reconciliation.html", ctx)
 
@@ -95,6 +104,16 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
 
     # default: team summary
     return render(request, "reports/team_summary.html", ctx)
+
+
+@router.post("/settlement-package")
+def settlement_package(request: Request, session: Session = Depends(get_session)):
+    ctx = base_context(request, session, "reports")
+    tournament = ctx["tournament"]
+    if tournament is None:
+        return RedirectResponse("/setup/new", status_code=303)
+    path = event_package.build_settlement_package(session, tournament, request.app.state.settings)
+    return FileResponse(path, filename=path.name, media_type="application/zip")
 
 
 @router.get("/export/{kind}")

@@ -8,7 +8,7 @@
 </div>
 <table class="table table-sm">
   <thead><tr><th>Customer</th><th>Contact</th><th>Team / Place</th><th>Player</th>
-    <th class="text-end">Entries</th><th class="text-end">Amount</th><th>Status</th><th>Paid</th></tr></thead>
+    <th class="text-end">Entries</th><th class="text-end">Amount</th><th>Status</th><th>Signature</th></tr></thead>
   <tbody>
     {% for p in payouts %}
     <tr>
@@ -18,12 +18,13 @@
       <td>{{ p.placement.player.name }}</td>
       <td class="text-end">{{ p.winning_entries }}</td>
       <td class="text-end money">{{ p.amount_cents | dollars }}</td>
-      <td>{{ payout_label(p.status) }}</td>
-      <td class="small">{{ p.paid_at | datetime }} {{ p.paid_by or '' }}</td>
+      <td>{{ payout_label(p.status) }}{% if p.paid_at %}<div class="small text-muted">{{ p.paid_at | datetime }} {{ p.paid_by or '' }}</div>{% endif %}</td>
+      <td style="min-width:150px">&nbsp;</td>
     </tr>
     {% else %}
     <tr><td colspan="8" class="text-center text-muted">No payouts generated yet.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+<p class="text-muted small">Each payee signs on collecting their winnings. This sheet is the physical payout record.</p>
 {% endblock %}
