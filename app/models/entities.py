@@ -50,6 +50,10 @@ class Tournament(Base):
 
     teams: Mapped[list["Team"]] = relationship(back_populates="tournament", cascade="all, delete-orphan")
 
+    @property
+    def is_settled(self) -> bool:
+        return self.status == TournamentStatus.SETTLED
+
     __table_args__ = (
         CheckConstraint("entry_price_cents >= 0", name="ck_tournament_price_nonneg"),
         CheckConstraint("club_bps >= 0 AND club_bps <= 10000", name="ck_tournament_club_bps"),
@@ -122,6 +126,7 @@ class Wager(Base):
     status: Mapped[str] = mapped_column(String(16), default=WagerStatus.ACTIVE, nullable=False)
     operator_id: Mapped[str | None] = mapped_column(String(120))
     note: Mapped[str | None] = mapped_column(Text)
+    reference: Mapped[str | None] = mapped_column(String(16))  # human-readable order ref (POS-05)
 
     created_at: Mapped[datetime] = mapped_column(default=utcnow, nullable=False)
     voided_at: Mapped[datetime | None] = mapped_column()
@@ -189,6 +194,12 @@ class Payout(Base):
     paid_by: Mapped[str | None] = mapped_column(String(120))
     payment_method: Mapped[str | None] = mapped_column(String(40))
     note: Mapped[str | None] = mapped_column(Text)
+
+    # Contact-action tracking for unpaid winners (spec RPT-04).
+    contact_status: Mapped[str | None] = mapped_column(String(30))  # called|emailed|texted|no_response
+    contact_note: Mapped[str | None] = mapped_column(Text)
+    contacted_at: Mapped[datetime | None] = mapped_column()
+    contacted_by: Mapped[str | None] = mapped_column(String(120))
 
     placement: Mapped[Placement] = relationship()
     customer: Mapped[Customer] = relationship()

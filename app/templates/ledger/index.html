@@ -55,13 +55,14 @@
 <div class="card shadow-sm">
   <table class="table table-sm table-hover mb-0">
     <thead><tr>
-      <th>Time</th><th>Operator</th><th>Customer</th><th>Team</th><th>Player</th>
+      <th>Time</th><th>Ref</th><th>Operator</th><th>Customer</th><th>Team</th><th>Player</th>
       <th class="text-end">Qty</th><th class="text-end">Amount</th><th>Status</th><th></th>
     </tr></thead>
     <tbody>
       {% for w in wagers %}
       <tr class="{{ 'table-light text-muted' if w.status=='void' }}">
         <td class="small">{{ w.created_at | datetime }}</td>
+        <td class="small">{{ w.reference or '' }}</td>
         <td class="small">{{ w.operator_id or '' }}</td>
         <td><a href="/customers/{{ w.customer_id }}">{{ w.customer.name }}</a></td>
         <td>{{ w.team.name }}</td>
@@ -80,7 +81,7 @@
         </td>
       </tr>
       {% if w.status=='active' %}
-      <tr class="collapse" id="lv-{{ w.id }}"><td colspan="9">
+      <tr class="collapse" id="lv-{{ w.id }}"><td colspan="10">
         <form method="post" action="/wagers/{{ w.id }}/void" class="row g-2 align-items-end">
           <input type="hidden" name="return_to" value="/ledger">
           <div class="col-md-5"><label class="form-label small mb-0">Reason</label>
@@ -92,7 +93,7 @@
       </td></tr>
       {% endif %}
       {% else %}
-      <tr><td colspan="9" class="text-muted text-center py-4">No transactions match.</td></tr>
+      <tr><td colspan="10" class="text-muted text-center py-4">No transactions match.</td></tr>
       {% endfor %}
     </tbody>
   </table>

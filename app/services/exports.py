@@ -39,12 +39,12 @@ def wagers_csv(session: Session, tournament_id: int) -> str:
     stmt = select(Wager).where(Wager.tournament_id == tournament_id).order_by(Wager.id)
     for w in session.scalars(stmt):
         rows.append([
-            w.id, w.created_at, w.operator_id or "", w.customer_id, w.customer.name,
+            w.id, w.reference or "", w.created_at, w.operator_id or "", w.customer_id, w.customer.name,
             w.team.name, w.player.name, w.quantity, _dollars(w.unit_price_cents),
             _dollars(w.amount_cents), w.amount_cents, w.status, w.void_reason or "",
         ])
     return _csv(
-        ["wager_id", "created_at", "operator", "customer_id", "customer", "team", "player",
+        ["wager_id", "reference", "created_at", "operator", "customer_id", "customer", "team", "player",
          "quantity", "unit_price", "amount", "amount_cents", "status", "void_reason"],
         rows,
     )

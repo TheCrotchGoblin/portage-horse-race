@@ -51,6 +51,15 @@ def init_engine(db_url: str, *, echo: bool = False) -> Engine:
 # Columns added after the initial 0.1.0 schema. Kept here so existing databases
 # upgrade in place (idempotent ALTER TABLE) without a full migration framework.
 _ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    "wagers": {
+        "reference": "VARCHAR(16)",
+    },
+    "payouts": {
+        "contact_status": "VARCHAR(30)",
+        "contact_note": "TEXT",
+        "contacted_at": "DATETIME",
+        "contacted_by": "VARCHAR(120)",
+    },
     "placements": {
         "payouts_generated_at": "DATETIME",
         "disposition": "TEXT",

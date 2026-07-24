@@ -118,6 +118,7 @@ def cashier(request: Request, session: Session = Depends(get_session), customer_
         "cart_total": total,
         "cart_entries": entries,
         "recent": wager_service.recent(session, tournament.id, limit=8),
+        "last_customer": request.session.get("last_customer") if selected_customer is None else None,
     })
     return render(request, "cashier/index.html", ctx)
 
@@ -213,6 +214,7 @@ def checkout(request: Request, session: Session = Depends(get_session), received
             flash(request, "Amount received is less than the total due.", "danger")
             return RedirectResponse("/cashier", status_code=303)
 
+    reference = wager_service.new_reference()
     try:
         for ln in cart["lines"]:
             wager_service.record_wager(
@@ -223,14 +225,19 @@ def checkout(request: Request, session: Session = Depends(get_session), received
                 customer_id=cart["customer_id"],
                 quantity=ln["quantity"],
                 operator=operator_name(request),
+                reference=reference,
             )
     except WagerError as exc:
         session.rollback()  # keep the whole order atomic — nothing is recorded
         flash(request, f"{exc} Nothing was recorded — please review the order.", "danger")
         return RedirectResponse("/cashier", status_code=303)
 
+    # Remember the customer for a quick repeat order (POS-03), but clear the cart
+    # so a stray refresh can't duplicate the sale.
+    customer = session.get(Customer, cart["customer_id"])
     request.session["cart"] = {"customer_id": None, "lines": []}
-    flash(request, f"Recorded {entries} entrie(s) — {cents_to_dollars(total)}. Ready for the next customer.")
+    request.session["last_customer"] = {"id": cart["customer_id"], "name": customer.name if customer else ""}
+    flash(request, f"Recorded {entries} entrie(s) — {cents_to_dollars(total)}. Reference {reference}. Ready for the next customer.")
     return RedirectResponse("/cashier", status_code=303)
 
 

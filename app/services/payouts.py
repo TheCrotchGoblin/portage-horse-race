@@ -23,6 +23,13 @@ class PayoutError(ValueError):
     """User-safe error for results/payout operations."""
 
 
+def _ensure_not_locked(tournament: Tournament | None) -> None:
+    """A settled event is financially locked (spec FIN-04). Enforced here so
+    every payout/disposition mutation is guarded regardless of the caller."""
+    if tournament is not None and tournament.is_settled:
+        raise PayoutError("This event is settled and locked. Reopen it before making changes.")
+
+
 @dataclass
 class PlacementPreview:
     position: int
@@ -248,6 +255,26 @@ DISPOSITIONS = {
     "manual": "Handle manually (see note)",
 }
 
+CONTACT_STATUSES = {
+    "called": "Called",
+    "emailed": "Emailed",
+    "texted": "Texted",
+    "no_response": "No response",
+}
+
+
+def set_contact(session: Session, payout: Payout, *, status: str, note: str, operator: str) -> Payout:
+    """Record a contact action for an unpaid winner (spec RPT-04)."""
+    if status not in CONTACT_STATUSES:
+        raise PayoutError("Choose how the winner was contacted.")
+    payout.contact_status = status
+    payout.contact_note = (note or "").strip() or None
+    payout.contacted_at = utcnow()
+    payout.contacted_by = operator
+    audit.record(session, action_type="payout_contact", actor=operator,
+                 entity_type="payout", entity_id=payout.id, after={"contact": status})
+    return payout
+
 
 def unclaimed_placements(session: Session, tournament_id: int) -> list[Placement]:
     """Placements whose pool went to nobody (placed player had no wagers).
@@ -270,6 +297,7 @@ def unclaimed_placements(session: Session, tournament_id: int) -> list[Placement
 
 
 def set_disposition(session: Session, placement: Placement, *, disposition: str, note: str, operator: str) -> Placement:
+    _ensure_not_locked(placement.player.team.tournament)
     if disposition not in DISPOSITIONS:
         raise PayoutError("Choose how the unclaimed pool should be handled.")
     if disposition == "manual" and not (note or "").strip():
@@ -293,8 +321,7 @@ def set_disposition(session: Session, placement: Placement, *, disposition: str,
 def pay_payout(session: Session, payout: Payout, *, method: str, operator: str, note: str | None = None) -> Payout:
     if payout.status == PayoutStatus.PAID:
         raise PayoutError("This payout has already been paid.")
-    if payout.status == PayoutStatus.REVERSED:
-        raise PayoutError("This payout was reversed and cannot be paid without regenerating.")
+    # UNPAID or a previously REVERSED payout (owed again) may be paid; only PAID is blocked.
     payout.status = PayoutStatus.PAID
     payout.paid_at = utcnow()
     payout.paid_by = operator
@@ -312,6 +339,7 @@ def pay_payout(session: Session, payout: Payout, *, method: str, operator: str, 
 
 
 def reverse_payout(session: Session, payout: Payout, *, reason: str, operator: str) -> Payout:
+    _ensure_not_locked(payout.placement.player.team.tournament)
     if not (reason or "").strip():
         raise PayoutError("A reason is required to reverse a payment.")
     before = {"status": payout.status}
@@ -329,13 +357,39 @@ def reverse_payout(session: Session, payout: Payout, *, reason: str, operator: s
     return payout
 
 
+def reopen_settlement(session: Session, tournament: Tournament, *, operator: str, reason: str) -> None:
+    """Reopen a SETTLED event for corrections (spec FIN-04). Requires a reason;
+    the caller enforces the administrator PIN. Audited."""
+    if not tournament.is_settled:
+        raise PayoutError("This event is not settled, so there is nothing to reopen.")
+    if not (reason or "").strip():
+        raise PayoutError("A reason is required to reopen a settled event.")
+    tournament.status = TournamentStatus.PAYOUTS_GENERATED
+    audit.record(
+        session,
+        action_type="settlement_reopened",
+        actor=operator,
+        tournament_id=tournament.id,
+        entity_type="tournament",
+        entity_id=tournament.id,
+        before={"status": TournamentStatus.SETTLED},
+        after={"status": TournamentStatus.PAYOUTS_GENERATED},
+        reason=reason.strip(),
+    )
+
+
 def check_settled(session: Session, tournament: Tournament) -> None:
     """Advance to SETTLED when no unpaid payouts remain across the tournament."""
-    unpaid = session.scalar(
+    session.flush()  # ensure a just-marked-paid payout is visible to the queries below
+    # Outstanding = money still owed. A REVERSED payout is neither paid nor
+    # (currently) unpaid, but the winner is owed again, so it must block SETTLED —
+    # otherwise reopen -> reverse -> pay-another could re-settle with money owed.
+    outstanding = session.scalar(
         select(func.count(Payout.id))
         .join(Placement, Payout.placement_id == Placement.id)
         .join(Team, Placement.team_id == Team.id)
-        .where(Team.tournament_id == tournament.id, Payout.status == PayoutStatus.UNPAID)
+        .where(Team.tournament_id == tournament.id,
+               Payout.status.in_(PayoutStatus.OUTSTANDING))
     )
     total = session.scalar(
         select(func.count(Payout.id))
@@ -358,6 +412,6 @@ def check_settled(session: Session, tournament: Tournament) -> None:
     ) or 0
     all_generated = teams_total > 0 and teams_total == teams_generated
 
-    if (total and not unpaid and not undisposed and all_generated
+    if (total and not outstanding and not undisposed and all_generated
             and tournament.status == TournamentStatus.PAYOUTS_GENERATED):
         tournament.status = TournamentStatus.SETTLED

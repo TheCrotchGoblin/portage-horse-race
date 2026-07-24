@@ -31,6 +31,10 @@
             <span class="badge bg-success">Selected</span>
           </div>
         {% else %}
+          {% if last_customer and last_customer.id %}
+          <a href="/cashier?customer_id={{ last_customer.id }}" class="btn btn-outline-brand btn-sm mb-2">
+            ↻ Another order for {{ last_customer.name }}</a>
+          {% endif %}
           <div class="row g-2 align-items-start">
             <div class="col-md-7">
               <input class="form-control form-control-lg" placeholder="Search name, phone or email…"
@@ -130,7 +134,7 @@
           <div class="d-flex justify-content-between">
             <div class="small">
               <span class="{{ 'text-decoration-line-through text-muted' if w.status=='void' }}">{{ w.customer.name }} · {{ w.player.name }}</span>
-              <div class="text-muted">{{ w.quantity }} × {{ w.unit_price_cents | dollars }}</div>
+              <div class="text-muted">{{ w.quantity }} × {{ w.unit_price_cents | dollars }}{% if w.reference %} · {{ w.reference }}{% endif %}</div>
             </div>
             <div class="text-end">
               <div class="money">{{ w.amount_cents | dollars }}</div>

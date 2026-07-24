@@ -6,6 +6,8 @@ entry — never a delete (BR-10).
 """
 from __future__ import annotations
 
+import secrets
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,15 @@ from app.models.entities import utcnow
 from app.services import audit
 
 MAX_QUANTITY = 1000  # configurable practical maximum (spec FR-041)
+
+# Unambiguous alphabet (no I/L/O/0/1) for human-readable order references.
+_REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ"
+
+
+def new_reference() -> str:
+    """A short, human-readable order reference, e.g. A7F-0241 (spec POS-05)."""
+    letters = "".join(secrets.choice(_REF_ALPHABET) for _ in range(3))
+    return f"{letters}-{secrets.randbelow(10000):04d}"
 
 
 class WagerError(ValueError):
@@ -32,6 +43,7 @@ def record_wager(
     received_cents: int | None = None,
     operator: str | None = None,
     note: str | None = None,
+    reference: str | None = None,
 ) -> Wager:
     if quantity is None or quantity < 1:
         raise WagerError("Quantity must be at least 1 entry.")
@@ -65,6 +77,7 @@ def record_wager(
         status=WagerStatus.ACTIVE,
         operator_id=operator,
         note=note,
+        reference=reference,
     )
     session.add(wager)
     session.flush()

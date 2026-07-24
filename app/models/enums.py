@@ -45,6 +45,9 @@ class PayoutStatus:
     REVERSED = "REVERSED"
     HELD = "HELD"
     LABELS = {UNPAID: "Unpaid", PAID: "Paid", REVERSED: "Reversed", HELD: "Held"}
+    # Money still owed / to resolve — blocks settlement. (HELD is a formally
+    # parked/resolved outcome per Appendix A, so it is NOT outstanding.)
+    OUTSTANDING = (UNPAID, REVERSED)
 
 
 class Position:
