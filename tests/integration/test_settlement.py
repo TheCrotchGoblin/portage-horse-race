@@ -4,8 +4,9 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from app import database
-from app.models import Customer, Payout, Placement, Player, Team
+from app.models import Customer, Payout, Placement, Player, Team, Tournament
 from app.models.enums import PayoutStatus
+from app.services.payouts import unclaimed_placements
 from tests.conftest import make_tournament, place_wager
 
 
@@ -24,6 +25,36 @@ def _customer(client, name):
 
 def _wager(client, cid, team_id, player_id, qty):
     place_wager(client, cid, team_id, player_id, qty)
+
+
+def test_other_team_not_flagged_unclaimed_before_generation(client):
+    """Recording results for a team and generating payouts for ONE team must not
+    make the other (ungenerated) team's pools show as unclaimed."""
+    make_tournament(client)
+    with database.SessionLocal() as s:
+        teams = s.scalars(select(Team).order_by(Team.id)).all()
+        ta_id, tb_id = teams[0].id, teams[1].id
+        pa = [p.id for p in s.scalars(select(Player).where(Player.team_id == ta_id).order_by(Player.id)).all()]
+        pb = [p.id for p in s.scalars(select(Player).where(Player.team_id == tb_id).order_by(Player.id)).all()]
+    cid = _customer(client, "Backer")
+    for pid in pa:
+        _wager(client, cid, ta_id, pid, 2)
+    for pid in pb:
+        _wager(client, cid, tb_id, pid, 2)
+
+    # Record results for BOTH teams, but generate payouts for team A only.
+    client.post(f"/results/{ta_id}/placements",
+                data={"first_player_id": pa[0], "second_player_id": pa[1], "third_player_id": pa[2]})
+    client.post(f"/results/{tb_id}/placements",
+                data={"first_player_id": pb[0], "second_player_id": pb[1], "third_player_id": pb[2]})
+    client.post(f"/results/{ta_id}/generate")
+
+    # Team B is pending payout generation — NOT unclaimed.
+    r = client.get("/payouts")
+    assert "Unclaimed pools" not in r.text
+    with database.SessionLocal() as s:
+        tid = s.scalars(select(Tournament)).first().id
+        assert unclaimed_placements(s, tid) == []
 
 
 def test_worked_example_settlement_reconciles(client):

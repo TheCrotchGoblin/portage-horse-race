@@ -156,6 +156,11 @@ class Placement(Base):
     finalized_at: Mapped[datetime | None] = mapped_column()
     finalized_by: Mapped[str | None] = mapped_column(String(120))
 
+    # Set when payouts are generated for this placement's team. Distinguishes
+    # "results recorded" (finalized_at) from "payouts generated" so a team that
+    # hasn't been through payout generation isn't mistaken for an unclaimed pool.
+    payouts_generated_at: Mapped[datetime | None] = mapped_column()
+
     # Disposition of an unclaimed pool when the placed player had no wagers (FR-108).
     disposition: Mapped[str | None] = mapped_column(String(40))  # return_to_club | carryover | manual
     disposition_note: Mapped[str | None] = mapped_column(Text)

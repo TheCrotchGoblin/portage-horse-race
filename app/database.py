@@ -52,6 +52,7 @@ def init_engine(db_url: str, *, echo: bool = False) -> Engine:
 # upgrade in place (idempotent ALTER TABLE) without a full migration framework.
 _ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "placements": {
+        "payouts_generated_at": "DATETIME",
         "disposition": "TEXT",
         "disposition_note": "TEXT",
         "disposition_by": "VARCHAR(120)",

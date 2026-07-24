@@ -169,6 +169,7 @@ def generate_payouts(session: Session, tournament: Tournament, team: Team, *, op
     for placement in placements:
         placement.finalized_at = placement.finalized_at or utcnow()
         placement.finalized_by = placement.finalized_by or operator
+        placement.payouts_generated_at = utcnow()  # mark that payouts were generated for this team
         result = allocate_placement(placement.allocated_pool_cents, _winning_units(session, team.id, placement.player_id))
         if result.total_entries == 0:
             unclaimed_total += result.unclaimed_cents
@@ -211,6 +212,9 @@ def regenerate_payouts(session: Session, tournament: Tournament, team: Team, *, 
     ).all()
     for p in payouts:
         session.delete(p)
+    # Un-flag the team's placements so they're no longer treated as generated.
+    for placement in session.scalars(select(Placement).where(Placement.team_id == team.id)).all():
+        placement.payouts_generated_at = None
     session.flush()
     audit.record(
         session,
@@ -231,10 +235,15 @@ DISPOSITIONS = {
 
 
 def unclaimed_placements(session: Session, tournament_id: int) -> list[Placement]:
-    """Finalized placements whose pool went to nobody (placed player had no wagers)."""
+    """Placements whose pool went to nobody (placed player had no wagers).
+
+    Only considers placements whose team has actually been through payout
+    generation — a team with results recorded but payouts not yet generated is
+    NOT unclaimed.
+    """
     placements = session.scalars(
         select(Placement).join(Team, Placement.team_id == Team.id)
-        .where(Team.tournament_id == tournament_id, Placement.finalized_at.is_not(None),
+        .where(Team.tournament_id == tournament_id, Placement.payouts_generated_at.is_not(None),
                Placement.allocated_pool_cents > 0)
     ).all()
     result = []
@@ -321,5 +330,19 @@ def check_settled(session: Session, tournament: Tournament) -> None:
     )
     # An unclaimed pool must be formally disposed before the event is SETTLED (FR-108).
     undisposed = [p for p in unclaimed_placements(session, tournament.id) if p.disposition is None]
-    if total and not unpaid and not undisposed and tournament.status == TournamentStatus.PAYOUTS_GENERATED:
+
+    # Every team must have been through payout generation before settling —
+    # otherwise fully paying one team would prematurely settle the whole event.
+    teams_total = session.scalar(
+        select(func.count(Team.id)).where(Team.tournament_id == tournament.id)
+    ) or 0
+    teams_generated = session.scalar(
+        select(func.count(func.distinct(Placement.team_id)))
+        .join(Team, Placement.team_id == Team.id)
+        .where(Team.tournament_id == tournament.id, Placement.payouts_generated_at.is_not(None))
+    ) or 0
+    all_generated = teams_total > 0 and teams_total == teams_generated
+
+    if (total and not unpaid and not undisposed and all_generated
+            and tournament.status == TournamentStatus.PAYOUTS_GENERATED):
         tournament.status = TournamentStatus.SETTLED
