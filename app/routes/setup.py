@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -50,6 +50,8 @@ def _overview_context(request: Request, session: Session, tournament: Tournament
         select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
     ).all()
     ctx["locked"] = setup_service.has_sales(session, tournament.id)
+    ctx["checklist"] = setup_service.setup_checklist(session, tournament)
+    ctx["ready_to_open"] = all(i["done"] for i in ctx["checklist"])
     return ctx
 
 
@@ -59,6 +61,18 @@ def overview(request: Request, session: Session = Depends(get_session)):
     if tournament is None:
         return _redirect("/setup/new")
     return render(request, "setup/overview.html", _overview_context(request, session, tournament))
+
+
+@router.post("/demo")
+def load_demo(request: Request, session: Session = Depends(get_session)):
+    if get_active_tournament(session) is not None:
+        flash(request, "Archive the current tournament before loading the demo.", "warning")
+        return _redirect("/setup")
+    from app.services import demo
+
+    demo.seed_demo(session, operator=operator_name(request))
+    flash(request, "Loaded a demo tournament with sample data. Explore freely — archive it when you're done.")
+    return _redirect("/")
 
 
 @router.get("/new")
@@ -176,6 +190,31 @@ def add_players(request: Request, team_id: int, session: Session = Depends(get_s
     if skipped:
         msg += f" Skipped {len(skipped)} name(s) already on the team: {', '.join(skipped)}."
     flash(request, msg, "warning" if skipped else "success")
+    return _redirect("/setup")
+
+
+@router.get("/players-template.csv")
+def players_template():
+    sample = "team,player\nFront Nine,Mike Hansen\nFront Nine,Dave Carroll\nBack Nine,Chris Nolan\n"
+    return PlainTextResponse(sample, media_type="text/csv",
+                             headers={"Content-Disposition": 'attachment; filename="players_template.csv"'})
+
+
+@router.post("/import-players")
+def import_players(request: Request, session: Session = Depends(get_session), file: UploadFile = File(...)):
+    tournament = get_active_tournament(session)
+    try:
+        text = file.file.read().decode("utf-8-sig", errors="replace")
+    except Exception:
+        flash(request, "Could not read that file — please upload a plain CSV.", "danger")
+        return _redirect("/setup")
+    result = setup_service.import_players_csv(session, tournament, text)
+    msg = f"Imported {result['added']} player(s)."
+    if result["skipped"]:
+        msg += f" Skipped {result['skipped']} already on their team."
+    if result["unknown_teams"]:
+        msg += f" These team names weren't found (create them first): {', '.join(result['unknown_teams'])}."
+    flash(request, msg, "warning" if (result["skipped"] or result["unknown_teams"]) else "success")
     return _redirect("/setup")
 
 

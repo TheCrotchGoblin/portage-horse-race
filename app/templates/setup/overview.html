@@ -15,6 +15,34 @@
 <div class="row g-3">
   <!-- Teams & players -->
   <div class="col-lg-8">
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Before you open wagering</strong>
+        {% if ready_to_open %}<span class="badge bg-success">Ready</span>{% else %}<span class="badge bg-secondary">In progress</span>{% endif %}
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for item in checklist %}
+        <li class="list-group-item d-flex align-items-center py-2">
+          <span class="me-2">{{ '✅' if item.done else '⬜' }}</span>
+          <span class="{{ 'text-muted' if item.done }}">{{ item.label }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header"><strong>Import players from a spreadsheet</strong></div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">Upload a CSV with two columns — <code>team, player</code>.
+          Team names must match teams you've added. <a href="/setup/players-template.csv">Download a sample</a>.</p>
+        <form method="post" action="/setup/import-players" enctype="multipart/form-data" class="d-flex gap-2">
+          <input type="file" name="file" accept=".csv,text/csv" class="form-control form-control-sm" required>
+          <button class="btn btn-outline-brand btn-sm text-nowrap">Import CSV</button>
+        </form>
+      </div>
+    </div>
+
     {% for team in teams %}
     <div class="card shadow-sm mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">

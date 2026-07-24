@@ -179,6 +179,45 @@ def add_players(session: Session, team: Team, names: list[str]) -> tuple[list[Pl
     return created, skipped
 
 
+def import_players_csv(session: Session, tournament: Tournament, csv_text: str) -> dict:
+    """Import players from CSV text with columns: team, player[, order] (spec SET-02).
+
+    Teams are matched by name (case-insensitive); unknown teams are reported, not
+    created. Duplicate players (per team) are skipped. Returns a summary.
+    """
+    import csv
+    import io
+    from collections import defaultdict
+
+    rows = list(csv.reader(io.StringIO(csv_text)))
+    if rows and rows[0] and rows[0][0].strip().lower() in ("team", "team name"):
+        rows = rows[1:]
+
+    teams = {t.name.lower(): t for t in
+             session.scalars(select(Team).where(Team.tournament_id == tournament.id)).all()}
+    by_team: dict[int, list[str]] = defaultdict(list)
+    unknown: list[str] = []
+    for row in rows:
+        if len(row) < 2:
+            continue
+        team_name, player_name = row[0].strip(), row[1].strip()
+        if not player_name:
+            continue
+        team = teams.get(team_name.lower())
+        if team is None:
+            unknown.append(team_name)
+            continue
+        by_team[team.id].append(player_name)
+
+    added = skipped = 0
+    for team_id, names in by_team.items():
+        created, dupes = add_players(session, session.get(Team, team_id), names)
+        added += len(created)
+        skipped += len(dupes)
+    return {"added": added, "skipped": skipped,
+            "unknown_teams": sorted(set(u for u in unknown if u))}
+
+
 def delete_player(session: Session, tournament: Tournament, player: Player) -> None:
     # Adding players is always allowed; removal is blocked only if THIS player
     # already has wagers (their financial records must be kept).
@@ -193,6 +232,23 @@ def delete_team(session: Session, tournament: Tournament, team: Team) -> None:
     if count:
         raise SetupError(f"'{team.name}' already has wagers, so it can't be removed. Void those wagers first.")
     session.delete(team)
+
+
+def setup_checklist(session: Session, tournament: Tournament) -> list[dict]:
+    """Completeness items shown before wagering can open (spec SET-03)."""
+    teams = session.scalars(select(Team).where(Team.tournament_id == tournament.id)).all()
+    teams_with_players = 0
+    for team in teams:
+        count = session.scalar(select(func.count(Player.id)).where(Player.team_id == team.id)) or 0
+        if count >= 1:
+            teams_with_players += 1
+    items = [
+        {"label": "Tournament is named", "done": bool((tournament.name or "").strip())},
+        {"label": "At least one team added", "done": len(teams) >= 1},
+        {"label": "Every team has at least one player",
+         "done": bool(teams) and teams_with_players == len(teams)},
+    ]
+    return items
 
 
 def _ready_to_open(session: Session, tournament: Tournament) -> None:
