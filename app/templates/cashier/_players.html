@@ -1,0 +1,14 @@
+{% for op in players %}
+<form method="post" action="/cashier/cart/add" class="d-flex align-items-center gap-2 py-1 px-2 border-bottom player-row">
+  <input type="hidden" name="team_id" value="{{ op.team.id }}">
+  <input type="hidden" name="player_id" value="{{ op.player.id }}">
+  <div class="flex-grow-1 text-truncate">
+    <span class="fw-semibold">{{ op.player.name }}</span>
+    <span class="text-muted small">· {{ op.team.name }} · {{ op.entries }} sold</span>
+  </div>
+  <input type="number" name="quantity" value="1" min="1" class="form-control form-control-sm" style="width:68px" aria-label="entries">
+  <button class="btn btn-sm btn-brand">Add</button>
+</form>
+{% else %}
+<div class="text-muted small p-3 text-center">No players match{{ ' “' ~ q ~ '”' if q }}.</div>
+{% endfor %}

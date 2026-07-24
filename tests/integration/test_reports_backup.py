@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app import database
 from app.models import Customer, Player, Team, Wager
 from app.services import backups as backup_service
-from tests.conftest import make_tournament
+from tests.conftest import make_tournament, place_wager
 
 
 def _ids(client):
@@ -26,7 +26,7 @@ def test_csv_exports(client):
     make_tournament(client)
     team_id, player_id = _ids(client)
     cid = _new_customer(client, "Export Me")
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": player_id, "quantity": "3"})
+    place_wager(client, cid, team_id, player_id, 3)
 
     r = client.get("/reports/export/wagers")
     assert r.status_code == 200
@@ -54,9 +54,9 @@ def test_results_report_discloses_remainder(client):
         team_id = team.id
         alice, bob, carol = [p.id for p in players]
     cid = _new_customer(client, "R")
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": alice, "quantity": "5"})
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": bob, "quantity": "200"})
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": carol, "quantity": "95"})
+    place_wager(client, cid, team_id, alice, 5)
+    place_wager(client, cid, team_id, bob, 200)
+    place_wager(client, cid, team_id, carol, 95)
     client.post(f"/results/{team_id}/placements", data={
         "first_player_id": alice, "second_player_id": bob, "third_player_id": carol})
 
@@ -69,7 +69,7 @@ def test_backup_then_restore_drops_later_transaction(client):
     make_tournament(client)
     team_id, player_id = _ids(client)
     cid = _new_customer(client, "Baseline")
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": player_id, "quantity": "1"})
+    place_wager(client, cid, team_id, player_id, 1)
 
     # Back up with the baseline in place.
     client.post("/admin/backup")
@@ -79,7 +79,7 @@ def test_backup_then_restore_drops_later_transaction(client):
     backup_name = backups[0].name
 
     # Add a later transaction that should NOT survive the restore.
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": player_id, "quantity": "99"})
+    place_wager(client, cid, team_id, player_id, 99)
     with database.SessionLocal() as s:
         assert s.scalar(select(Wager).where(Wager.quantity == 99)) is not None
 

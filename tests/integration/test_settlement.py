@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app import database
 from app.models import Customer, Payout, Placement, Player, Team
 from app.models.enums import PayoutStatus
-from tests.conftest import make_tournament
+from tests.conftest import make_tournament, place_wager
 
 
 def _setup_players(client):
@@ -23,7 +23,7 @@ def _customer(client, name):
 
 
 def _wager(client, cid, team_id, player_id, qty):
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": player_id, "quantity": str(qty)})
+    place_wager(client, cid, team_id, player_id, qty)
 
 
 def test_worked_example_settlement_reconciles(client):

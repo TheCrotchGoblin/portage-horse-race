@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app import database
 from app.models import Customer, Player, Team
-from tests.conftest import make_tournament
+from tests.conftest import make_tournament, place_wager
 
 
 def _ids(client):
@@ -21,7 +21,7 @@ def test_ledger_lists_and_filters(client):
     client.post("/customers/new", data={"name": "Dana"})
     with database.SessionLocal() as s:
         cid = s.scalars(select(Customer)).first().id
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": player_id, "quantity": "3"})
+    place_wager(client, cid, team_id, player_id, 3)
 
     r = client.get("/ledger")
     assert r.status_code == 200

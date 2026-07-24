@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app import database
 from app.models import Customer, Player, Team, Wager
 from app.services import teams as team_service
-from tests.conftest import make_tournament
+from tests.conftest import make_tournament, place_wager
 
 
 def new_session():
@@ -34,17 +34,10 @@ def test_record_and_void_reverses_totals(client):
     with new_session() as s:
         customer_id = s.scalars(select(Customer)).first().id
 
-    r = client.post("/wagers", data={
-        "customer_id": customer_id, "team_id": team_a_id,
-        "player_id": player_id, "quantity": "4", "received": "20.00",
-    }, follow_redirects=False)
-    assert r.status_code == 303
+    place_wager(client, customer_id, team_a_id, player_id, 4)
     assert totals(team_a_id) == (4, 2000)  # 4 x $5.00
 
-    client.post("/wagers", data={
-        "customer_id": customer_id, "team_id": team_a_id,
-        "player_id": player_id, "quantity": "2", "received": "10.00",
-    })
+    place_wager(client, customer_id, team_a_id, player_id, 2)
     assert totals(team_a_id) == (6, 3000)
 
     with new_session() as s:
@@ -53,6 +46,51 @@ def test_record_and_void_reverses_totals(client):
                     follow_redirects=False)
     assert r.status_code == 303
     assert totals(team_a_id) == (2, 1000)  # reversed exactly
+
+
+def test_cart_takes_one_payment_for_multiple_players(client):
+    make_tournament(client)
+    with new_session() as s:
+        team = s.scalars(select(Team).order_by(Team.id)).first()
+        players = s.scalars(select(Player).where(Player.team_id == team.id).order_by(Player.id)).all()
+        tid = team.id
+        p1, p2, p3 = [p.id for p in players]
+    client.post("/customers/new", data={"name": "Multi Backer"})
+    with new_session() as s:
+        cid = s.scalars(select(Customer)).first().id
+
+    # Build one order across three players, then pay once.
+    client.get(f"/cashier?customer_id={cid}")
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p1, "quantity": "2"})
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p2, "quantity": "1"})
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p3, "quantity": "3"})
+    r = client.post("/cashier/checkout", data={"received": "30.00"}, follow_redirects=True)
+    assert "Recorded 6 entrie" in r.text
+
+    with new_session() as s:
+        wagers = s.scalars(select(Wager).where(Wager.customer_id == cid)).all()
+        assert len(wagers) == 3  # three separate wager rows...
+        assert sum(w.quantity for w in wagers) == 6  # ...from one payment
+    assert totals(tid) == (6, 3000)
+
+
+def test_cart_merges_repeat_player_and_removes_line(client):
+    make_tournament(client)
+    with new_session() as s:
+        team = s.scalars(select(Team).order_by(Team.id)).first()
+        players = s.scalars(select(Player).where(Player.team_id == team.id).order_by(Player.id)).all()
+        tid, p1, p2 = team.id, players[0].id, players[1].id
+    client.post("/customers/new", data={"name": "Cart Editor"})
+    with new_session() as s:
+        cid = s.scalars(select(Customer)).first().id
+    client.get(f"/cashier?customer_id={cid}")
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p1, "quantity": "2"})
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p1, "quantity": "3"})  # merges -> 5
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p2, "quantity": "1"})
+    client.post("/cashier/cart/remove", data={"index": "1"})  # remove the p2 line
+    r = client.post("/cashier/checkout", data={"received": "25.00"}, follow_redirects=True)
+    assert "Recorded 5 entrie" in r.text
+    assert totals(tid) == (5, 2500)
 
 
 def test_wager_blocked_when_team_closed(client):
@@ -65,10 +103,8 @@ def test_wager_blocked_when_team_closed(client):
     with new_session() as s:
         customer_id = s.scalars(select(Customer)).first().id
 
-    client.post("/wagers", data={
-        "customer_id": customer_id, "team_id": team_a_id, "player_id": player_id, "quantity": "1",
-    })
-    assert totals(team_a_id) == (0, 0)  # blocked, nothing recorded
+    place_wager(client, customer_id, team_a_id, player_id, 1)
+    assert totals(team_a_id) == (0, 0)  # blocked (team closed) — nothing recorded
 
 
 def test_player_must_belong_to_team(client):
@@ -82,9 +118,8 @@ def test_player_must_belong_to_team(client):
     with new_session() as s:
         customer_id = s.scalars(select(Customer)).first().id
 
-    client.post("/wagers", data={
-        "customer_id": customer_id, "team_id": team_a_id, "player_id": player_b_id, "quantity": "1",
-    })
+    # Player from team B added under team A must be rejected by the cart.
+    place_wager(client, customer_id, team_a_id, player_b_id, 1)
     assert totals(team_a_id) == (0, 0)
 
 

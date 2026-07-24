@@ -4,28 +4,29 @@
 
 {% if not tournament_open %}
 <div class="alert alert-warning">
-  Wagering is not open yet. Go to <a href="/setup">Setup</a> to open wagering before taking cash.
+  Wagering is not open yet. Go to <a href="/setup">Setup</a> to open wagering before taking wagers.
 </div>
 {% endif %}
 
 <div class="row g-3">
-  <!-- LEFT: selection -->
-  <div class="col-lg-8">
+  <!-- LEFT: customer + player picker -->
+  <div class="col-lg-7">
 
     <!-- Step 1: Customer -->
     <div class="card shadow-sm mb-3">
-      <div class="card-header d-flex justify-content-between">
+      <div class="card-header d-flex justify-content-between align-items-center">
         <strong>1. Customer</strong>
-        {% if selected_customer %}<a href="/cashier" class="small">Change / new sale</a>{% endif %}
+        {% if selected_customer %}
+          <form method="post" action="/cashier/reset" class="m-0">
+            <button class="btn btn-sm btn-link">Change / new sale</button></form>
+        {% endif %}
       </div>
       <div class="card-body">
         {% if selected_customer %}
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <div class="h5 mb-0">{{ selected_customer.name }}</div>
-              <div class="text-muted small">
-                {{ selected_customer.phone_raw or 'no phone' }} · {{ selected_customer.email or 'no email' }}
-              </div>
+              <div class="text-muted small">{{ selected_customer.phone_raw or 'no phone' }} · {{ selected_customer.email or 'no email' }}</div>
             </div>
             <span class="badge bg-success">Selected</span>
           </div>
@@ -55,104 +56,67 @@
       </div>
     </div>
 
-    <!-- Step 2: Team -->
-    <div class="card shadow-sm mb-3 {{ 'opacity-50' if not selected_customer }}">
-      <div class="card-header"><strong>2. Team</strong></div>
+    <!-- Step 2: Add players to the order -->
+    {% if selected_customer %}
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>2. Add entries</strong>
+        <span class="text-muted small">search a player, set how many, press Add — repeat for as many players as you like</span></div>
       <div class="card-body">
-        <div class="pick-grid">
-          {% for team in teams %}
-            {% set open = team.wagering_status == 'OPEN' %}
-            <a class="pick-btn {{ 'selected' if selected_team and selected_team.id==team.id }}
-                      {{ 'disabled text-muted' if not open or not selected_customer }}"
-               {% if open and selected_customer %}
-               href="/cashier?customer_id={{ selected_customer.id }}&team_id={{ team.id }}"
-               {% else %}href="#" onclick="return false"{% endif %}>
-              {{ team.name }}
-              <span class="sub">{{ 'Open' if open else 'Closed' }}</span>
-            </a>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 3: Player -->
-    {% if selected_team %}
-    <div class="card shadow-sm mb-3">
-      <div class="card-header"><strong>3. Player</strong> <span class="text-muted small">on {{ selected_team.name }}</span></div>
-      <div class="card-body">
-        <div class="pick-grid">
-          {% for pt in team_players %}
-          <a class="pick-btn {{ 'selected' if selected_player and selected_player.id==pt.player.id }}"
-             href="/cashier?customer_id={{ selected_customer.id }}&team_id={{ selected_team.id }}&player_id={{ pt.player.id }}&qty={{ qty }}">
-            {{ pt.player.name }}
-            <span class="sub">{{ pt.entries }} entries so far</span>
-          </a>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Step 4: Quantity -->
-    {% if selected_player %}
-    <div class="card shadow-sm mb-3">
-      <div class="card-header"><strong>4. How many entries?</strong> <span class="text-muted small">({{ tournament.entry_price_cents | dollars }} each)</span></div>
-      <div class="card-body">
-        <div class="d-flex flex-wrap gap-2 qty-quick align-items-center">
-          {% for n in [1,2,5,10] %}
-          <a class="btn btn-lg {{ 'btn-brand' if qty==n else 'btn-outline-brand' }}"
-             href="/cashier?customer_id={{ selected_customer.id }}&team_id={{ selected_team.id }}&player_id={{ selected_player.id }}&qty={{ n }}">{{ n }}</a>
-          {% endfor %}
-          <form method="get" action="/cashier" class="d-inline-flex align-items-center ms-2 gap-1">
-            <input type="hidden" name="customer_id" value="{{ selected_customer.id }}">
-            <input type="hidden" name="team_id" value="{{ selected_team.id }}">
-            <input type="hidden" name="player_id" value="{{ selected_player.id }}">
-            <span class="small text-muted">or</span>
-            <input type="number" name="qty" value="{{ qty }}" min="1" class="form-control" style="width:90px">
-            <button class="btn btn-outline-secondary">Set</button>
-          </form>
+        <input class="form-control mb-2" placeholder="Search player by name…"
+               name="q" hx-get="/cashier/players" hx-trigger="keyup changed delay:150ms" hx-target="#player-list">
+        <div id="player-list" style="max-height: 460px; overflow-y: auto;" class="border rounded">
+          {% include "cashier/_players.html" %}
         </div>
       </div>
     </div>
     {% endif %}
   </div>
 
-  <!-- RIGHT: payment & confirm -->
-  <div class="col-lg-4">
+  <!-- RIGHT: order + payment -->
+  <div class="col-lg-5">
     <div class="card shadow-sm mb-3">
-      <div class="card-header bg-brand text-white"><strong>Payment</strong></div>
+      <div class="card-header bg-brand text-white"><strong>Order</strong>
+        {% if selected_customer %}<span class="small">for {{ selected_customer.name }}</span>{% endif %}</div>
       <div class="card-body">
-        {% if selected_customer and selected_team and selected_player %}
-        <dl class="row mb-2">
-          <dt class="col-5">Customer</dt><dd class="col-7">{{ selected_customer.name }}</dd>
-          <dt class="col-5">Player</dt><dd class="col-7">{{ selected_player.name }} <span class="text-muted">({{ selected_team.name }})</span></dd>
-          <dt class="col-5">Entries</dt><dd class="col-7">{{ qty }}</dd>
-        </dl>
-        <div class="text-center my-3">
-          <div class="text-muted small">Amount due</div>
-          <div class="money money-xl text-brand">{{ amount_due | dollars }}</div>
+        {% if cart_rows %}
+        <table class="table table-sm align-middle mb-2">
+          <thead><tr><th>Player</th><th class="text-end">Entries</th><th class="text-end">Subtotal</th><th></th></tr></thead>
+          <tbody>
+            {% for row in cart_rows %}
+            <tr>
+              <td>{{ row.player.name }}<div class="text-muted small">{{ row.team.name }}</div></td>
+              <td class="text-end">{{ row.quantity }} × {{ tournament.entry_price_cents | dollars }}</td>
+              <td class="text-end money">{{ row.subtotal | dollars }}</td>
+              <td class="text-end">
+                <form method="post" action="/cashier/cart/remove" class="m-0">
+                  <input type="hidden" name="index" value="{{ row.index }}">
+                  <button class="btn-close btn-sm" title="Remove"></button></form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="text-muted">{{ cart_entries }} entries — total due</span>
+          <span class="money money-xl text-brand">{{ cart_total | dollars }}</span>
         </div>
-        <form method="post" action="/wagers">
-          <input type="hidden" name="customer_id" value="{{ selected_customer.id }}">
-          <input type="hidden" name="team_id" value="{{ selected_team.id }}">
-          <input type="hidden" name="player_id" value="{{ selected_player.id }}">
-          <input type="hidden" name="quantity" value="{{ qty }}">
+        <form method="post" action="/cashier/checkout">
           <label class="form-label small">Cash received</label>
           <div class="input-group mb-2"><span class="input-group-text">$</span>
             <input name="received" id="received" class="form-control"
-                   value="{{ '%.2f' % (amount_due/100) }}"
-                   data-due="{{ amount_due }}" oninput="updateChange()"></div>
+                   value="{{ '%.2f' % (cart_total/100) }}" data-due="{{ cart_total }}" oninput="updateChange()"></div>
           <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted">Change due</span>
-            <span class="money" id="change-due">$0.00</span>
+            <span class="text-muted">Change due</span><span class="money" id="change-due">$0.00</span>
           </div>
           <button class="btn btn-success btn-lg w-100"
-                  data-confirm="Record {{ qty }} entrie(s) for {{ selected_customer.name }} — {{ amount_due | dollars }}?">
+                  data-confirm="Record {{ cart_entries }} entrie(s) for {{ selected_customer.name }} — {{ cart_total | dollars }}?">
             Record payment
           </button>
         </form>
+        {% elif selected_customer %}
+        <p class="text-muted text-center my-4">No entries yet. Search a player on the left and press <strong>Add</strong>.</p>
         {% else %}
-        <p class="text-muted text-center my-4">Select a customer, team and player to take a wager.</p>
+        <p class="text-muted text-center my-4">Choose a customer to start an order.</p>
         {% endif %}
       </div>
     </div>
@@ -165,16 +129,13 @@
         <li class="list-group-item py-2">
           <div class="d-flex justify-content-between">
             <div class="small">
-              <span class="{{ 'text-decoration-line-through text-muted' if w.status=='void' }}">
-                {{ w.customer.name }} · {{ w.player.name }}
-              </span>
+              <span class="{{ 'text-decoration-line-through text-muted' if w.status=='void' }}">{{ w.customer.name }} · {{ w.player.name }}</span>
               <div class="text-muted">{{ w.quantity }} × {{ w.unit_price_cents | dollars }}</div>
             </div>
             <div class="text-end">
               <div class="money">{{ w.amount_cents | dollars }}</div>
               {% if w.status == 'active' %}
-              <button class="btn btn-sm btn-link text-danger p-0" data-bs-toggle="collapse"
-                      data-bs-target="#void-{{ w.id }}">Void</button>
+              <button class="btn btn-sm btn-link text-danger p-0" data-bs-toggle="collapse" data-bs-target="#void-{{ w.id }}">Void</button>
               {% else %}<span class="badge bg-secondary">Voided</span>{% endif %}
             </div>
           </div>

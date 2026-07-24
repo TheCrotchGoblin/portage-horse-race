@@ -41,9 +41,17 @@ def test_placements_empty_selection_is_friendly(client):
     assert "choose a player" in r.text.lower()
 
 
-def test_record_wager_empty_fields_is_friendly(client):
+def test_cart_add_empty_fields_is_friendly(client):
     make_tournament(client)
-    r = client.post("/wagers", data={"customer_id": "", "team_id": "", "player_id": "", "quantity": ""},
+    # Adding to the cart with empty fields (and no customer) must not 422.
+    r = client.post("/cashier/cart/add", data={"team_id": "", "player_id": "", "quantity": ""},
                     follow_redirects=True)
     assert r.status_code == 200  # not 422
     assert "choose a customer" in r.text.lower()
+
+
+def test_checkout_empty_order_is_friendly(client):
+    make_tournament(client)
+    r = client.post("/cashier/checkout", data={"received": ""}, follow_redirects=True)
+    assert r.status_code == 200
+    assert "order is empty" in r.text.lower()

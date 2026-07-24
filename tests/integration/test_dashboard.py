@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app import database
 from app.models import Customer, Player, Team
-from tests.conftest import make_tournament
+from tests.conftest import make_tournament, place_wager
 
 
 def test_dashboard_matches_reference_scenario(client):
@@ -19,7 +19,7 @@ def test_dashboard_matches_reference_scenario(client):
     with database.SessionLocal() as s:
         cid = s.scalars(select(Customer)).first().id
 
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": player_id, "quantity": "300"})
+    place_wager(client, cid, team_id, player_id, 300)
 
     r = client.get("/")
     assert r.status_code == 200
@@ -36,7 +36,7 @@ def test_cash_count_variance(client):
     client.post("/customers/new", data={"name": "C"})
     with database.SessionLocal() as s:
         cid = s.scalars(select(Customer)).first().id
-    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": player_id, "quantity": "10"})
+    place_wager(client, cid, team_id, player_id, 10)
     # Expected cash = $50.00; count $45 -> $5 short.
     client.post(f"/teams/{team_id}/cash-count", data={"counted": "45.00"})
 

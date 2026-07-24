@@ -71,3 +71,10 @@ def make_tournament(client: TestClient, *, open_wagering: bool = True):
         client.post("/setup/open")
     session.close()
     return teams
+
+
+def place_wager(client, customer_id, team_id, player_id, qty):
+    """Record a single wager through the cashier cart flow (select → add → checkout)."""
+    client.get(f"/cashier?customer_id={customer_id}")
+    client.post("/cashier/cart/add", data={"team_id": team_id, "player_id": player_id, "quantity": str(qty)})
+    client.post("/cashier/checkout")
