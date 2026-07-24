@@ -2,6 +2,19 @@
 from __future__ import annotations
 
 
+def test_new_tournament_name_is_prefilled(client):
+    # The name is a real, editable value (accept-as-is works), not a blank placeholder.
+    r = client.get("/setup/new")
+    assert 'value="Portage Men' in r.text
+    assert "placeholder=\"Portage Men" not in r.text
+    # Submitting the pre-filled default creates the tournament.
+    r2 = client.post("/setup/new", data={
+        "name": "Portage Men's Open 2026", "entry_price": "5.00", "club_percent": "15",
+        "first_percent": "60", "second_percent": "30", "third_percent": "10",
+    }, follow_redirects=True)
+    assert "created" in r2.text.lower() or "Portage Men" in r2.text
+
+
 def test_new_tournament_keeps_values_on_error(client):
     # Prize split doesn't total 100% -> should re-render with values preserved.
     r = client.post("/setup/new", data={

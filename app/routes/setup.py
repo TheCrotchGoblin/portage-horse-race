@@ -1,6 +1,8 @@
 """Setup wizard routes (spec §6.1)."""
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -20,6 +22,11 @@ router = APIRouter(prefix="/setup")
 
 def _redirect(url: str = "/setup") -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
+
+
+def _default_tournament_name() -> str:
+    """A real, editable default (not a placeholder) so it can be accepted as-is."""
+    return f"Portage Men's Open {datetime.now().year}"
 
 
 def _invalid_fields(msg: str) -> list[str]:
@@ -61,6 +68,7 @@ def overview(request: Request, session: Session = Depends(get_session)):
 @router.get("/new")
 def new_form(request: Request, session: Session = Depends(get_session)):
     ctx = base_context(request, session, "setup")
+    ctx["default_name"] = _default_tournament_name()
     return render(request, "setup/new.html", ctx)
 
 
@@ -93,6 +101,7 @@ def create(
         ctx.update({
             "error": str(exc),
             "invalid_fields": _invalid_fields(str(exc)),
+            "default_name": _default_tournament_name(),
             "values": {
                 "name": name, "event_date": event_date, "entry_price": entry_price,
                 "club_percent": club_percent, "first_percent": first_percent,

@@ -19,7 +19,7 @@
         <div class="mb-3">
           <label class="form-label fw-semibold">Tournament name</label>
           <input name="name" class="form-control form-control-lg {{ 'is-invalid' if 'name' in invalid }}"
-                 placeholder="Portage Men's Open 2026" required data-autofocus value="{{ v.get('name', '') }}">
+                 required data-autofocus value="{{ v.get('name', default_name | default('')) }}">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Event date <span class="text-muted fw-normal">(optional)</span></label>
