@@ -3,18 +3,18 @@
 {% block content %}
 <h1 class="h3 mb-3">Reports &amp; exports</h1>
 <div class="alert alert-secondary py-2 small">
-  🔒 These reports and CSV files contain customers' names and contact details. Treat them as
+  <i class="bi bi-shield-lock me-1"></i>These reports and CSV files contain customers' names and contact details. Treat them as
   sensitive — share only with authorised tournament staff and delete copies when no longer needed.
 </div>
 <div class="card shadow-sm mb-3 border-brand">
   <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
-      <h2 class="h5 mb-1">📦 Settlement package</h2>
+      <h2 class="h5 mb-1"><i class="bi bi-box-seam me-2"></i>Settlement package</h2>
       <p class="text-muted small mb-0">One ZIP with the reconciliation, all spreadsheets, the audit log,
         a configuration snapshot and a database backup — the permanent record of this event. Save it somewhere safe (e.g. a USB drive).</p>
     </div>
     <form method="post" action="/reports/settlement-package">
-      <button class="btn btn-brand btn-lg">Create settlement package</button>
+      <button class="btn btn-brand btn-lg"><i class="bi bi-download me-2"></i>Create settlement package</button>
     </form>
   </div>
 </div>
@@ -22,26 +22,26 @@
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card shadow-sm h-100"><div class="card-body">
-      <h2 class="h5">Printable reports</h2>
+      <h2 class="h5"><i class="bi bi-printer me-2"></i>Printable reports</h2>
       <p class="text-muted small">Open, then use your browser's Print (Ctrl+P) to print or save as PDF.</p>
       <div class="d-grid gap-2">
-        <a class="btn btn-outline-brand" href="/reports/print/team-summary">Team summary</a>
-        <a class="btn btn-outline-brand" href="/reports/print/results">Results report</a>
-        <a class="btn btn-outline-brand" href="/reports/print/payouts">Payout register</a>
-        <a class="btn btn-outline-brand" href="/reports/print/reconciliation">Final reconciliation</a>
+        <a class="btn btn-outline-brand" href="/reports/print/team-summary"><i class="bi bi-people me-2"></i>Team summary</a>
+        <a class="btn btn-outline-brand" href="/reports/print/results"><i class="bi bi-trophy me-2"></i>Results report</a>
+        <a class="btn btn-outline-brand" href="/reports/print/payouts"><i class="bi bi-wallet2 me-2"></i>Payout register</a>
+        <a class="btn btn-outline-brand" href="/reports/print/reconciliation"><i class="bi bi-check2-square me-2"></i>Final reconciliation</a>
       </div>
     </div></div>
   </div>
   <div class="col-md-6">
     <div class="card shadow-sm h-100"><div class="card-body">
-      <h2 class="h5">Export to spreadsheet (CSV)</h2>
+      <h2 class="h5"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Export to spreadsheet (CSV)</h2>
       <p class="text-muted small">Opens in Excel or Google Sheets. Contains stable IDs and exact totals.</p>
       <div class="d-grid gap-2">
-        <a class="btn btn-outline-secondary" href="/reports/export/customers">Customers</a>
-        <a class="btn btn-outline-secondary" href="/reports/export/wagers">Wagers (ledger)</a>
-        <a class="btn btn-outline-secondary" href="/reports/export/player-totals">Player totals</a>
-        <a class="btn btn-outline-secondary" href="/reports/export/payouts">Payouts</a>
-        <a class="btn btn-outline-secondary" href="/reports/export/audit">Audit log</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/customers"><i class="bi bi-people me-2"></i>Customers</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/wagers"><i class="bi bi-journal-text me-2"></i>Wagers (ledger)</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/player-totals"><i class="bi bi-person-lines-fill me-2"></i>Player totals</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/payouts"><i class="bi bi-wallet2 me-2"></i>Payouts</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/audit"><i class="bi bi-shield-check me-2"></i>Audit log</a>
       </div>
     </div></div>
   </div>

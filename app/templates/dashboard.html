@@ -4,8 +4,8 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">{{ tournament.name }}</h1>
   <div>
-    <a href="/cashier" class="btn btn-brand">Take a wager</a>
-    <a href="/reports" class="btn btn-outline-secondary">Reports</a>
+    <a href="/cashier" class="btn btn-brand"><i class="bi bi-cash-coin me-1"></i>Take a wager</a>
+    <a href="/reports" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-bar-graph me-1"></i>Reports</a>
   </div>
 </div>
 
@@ -19,15 +19,15 @@
             {{ 'bg-warning-subtle' if backup_health.stale else 'bg-light' }}">
   <span class="small">
     {% if backup_health.last_at %}
-      💾 Last backup: <strong>{{ backup_health.age | datetime }}</strong>
+      <i class="bi bi-hdd me-1"></i>Last backup: <strong>{{ backup_health.age | datetime }}</strong>
       {% if backup_health.stale %}<span class="text-danger">— consider backing up now</span>{% endif %}
     {% else %}
-      ⚠ <span class="text-danger">No backup yet — back up before you rely on this.</span>
+      <i class="bi bi-exclamation-triangle text-danger me-1"></i><span class="text-danger">No backup yet — back up before you rely on this.</span>
     {% endif %}
   </span>
   <form method="post" action="/admin/backup" class="m-0">
     <input type="hidden" name="return_to" value="/dashboard">
-    <button class="btn btn-sm btn-outline-secondary">Back up now</button></form>
+    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-cloud-arrow-down me-1"></i>Back up now</button></form>
 </div>
 
 <div class="row g-3 mb-3">

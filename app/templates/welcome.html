@@ -8,26 +8,26 @@
     <!-- Home hub for the active tournament -->
     <div class="card shadow-sm">
       <div class="card-body p-5 text-center">
-        <div class="mb-2" style="font-size:2.5rem">⛳</div>
-        <h1 class="text-brand mb-1">{{ tournament.name }}</h1>
+        <img src="/static/icon.png" width="72" height="72" alt="" class="mb-3">
+        <h1 class="text-brand mb-2">{{ tournament.name }}</h1>
         <div class="mb-4">
-          <span class="badge bg-secondary status-pill">{{ status_label(tournament.status) }}</span>
+          <span class="badge bg-brand-100 text-brand status-pill">{{ status_label(tournament.status) }}</span>
         </div>
 
         {% if tournament.status == 'OPEN' %}
-          <a href="/cashier" class="btn btn-brand btn-lg px-5 mb-2">Take a wager</a>
-          <div><a href="/dashboard" class="btn btn-outline-secondary mt-2">Dashboard</a>
-            <a href="/reports" class="btn btn-outline-secondary mt-2">Reports</a></div>
+          <a href="/cashier" class="btn btn-brand btn-lg px-5 mb-2"><i class="bi bi-cash-coin me-2"></i>Take a wager</a>
+          <div><a href="/dashboard" class="btn btn-outline-secondary mt-2"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+            <a href="/reports" class="btn btn-outline-secondary mt-2"><i class="bi bi-file-earmark-bar-graph me-1"></i>Reports</a></div>
         {% elif tournament.status in ['DRAFT'] %}
           <p class="text-muted">This tournament isn't open for wagers yet.</p>
-          <a href="/setup" class="btn btn-brand btn-lg px-5 mb-2">Finish setup &amp; open wagering</a>
-          <div><a href="/dashboard" class="btn btn-outline-secondary mt-2">Dashboard</a></div>
+          <a href="/setup" class="btn btn-brand btn-lg px-5 mb-2"><i class="bi bi-sliders me-2"></i>Finish setup &amp; open wagering</a>
+          <div><a href="/dashboard" class="btn btn-outline-secondary mt-2"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></div>
         {% else %}
-          <a href="/dashboard" class="btn btn-brand btn-lg px-5 mb-2">Go to dashboard</a>
+          <a href="/dashboard" class="btn btn-brand btn-lg px-5 mb-2"><i class="bi bi-speedometer2 me-2"></i>Go to dashboard</a>
           <div>
-            <a href="/results" class="btn btn-outline-secondary mt-2">Results</a>
-            <a href="/payouts" class="btn btn-outline-secondary mt-2">Payouts</a>
-            <a href="/reports" class="btn btn-outline-secondary mt-2">Reports</a>
+            <a href="/results" class="btn btn-outline-secondary mt-2"><i class="bi bi-trophy me-1"></i>Results</a>
+            <a href="/payouts" class="btn btn-outline-secondary mt-2"><i class="bi bi-wallet2 me-1"></i>Payouts</a>
+            <a href="/reports" class="btn btn-outline-secondary mt-2"><i class="bi bi-file-earmark-bar-graph me-1"></i>Reports</a>
           </div>
         {% endif %}
       </div>
@@ -40,12 +40,13 @@
     <!-- No active tournament: introduce the app and start setup -->
     <div class="card shadow-sm">
       <div class="card-body p-5 text-center">
-        <h1 class="text-brand mb-3">⛳ Welcome</h1>
+        <img src="/static/icon.png" width="80" height="80" alt="" class="mb-3">
+        <h1 class="text-brand mb-3">Welcome</h1>
         <p class="lead">This app records cash wagers for the horse race and works out
           every payout for you — no calculator needed.</p>
         <p class="text-muted">Let's set up your tournament. It takes about two minutes:
           name it, add one or more teams and their players, then open wagering.</p>
-        <a href="/setup/new" class="btn btn-brand btn-lg mt-3 px-5">Set up a tournament</a>
+        <a href="/setup/new" class="btn btn-brand btn-lg mt-3 px-5"><i class="bi bi-flag me-2"></i>Set up a tournament</a>
         <div class="mt-3">
           <form method="post" action="/setup/demo" class="d-inline">
             <button class="btn btn-link btn-sm text-muted">or try a demo tournament with sample data</button>

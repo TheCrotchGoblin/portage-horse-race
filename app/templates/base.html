@@ -7,6 +7,7 @@
   <link rel="icon" href="/static/icon.png">
 
   <link rel="stylesheet" href="/static/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/vendor/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/js/app.js" defer></script>
@@ -14,17 +15,17 @@
 <body class="bg-light">
   <nav class="navbar navbar-expand-lg navbar-dark bg-brand no-print">
     <div class="container-fluid">
-      <a class="navbar-brand" href="/">⛳ Portage Horse Race</a>
+      <a class="navbar-brand" href="/"><img src="/static/icon.png" class="brand-mark" alt="">Portage Horse Race</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
         <span class="navbar-toggler-icon"></span>
       </button>
       {% set nav = active_nav | default('') %}
-      {% macro navlink(id, href, label, needs_tournament=false) %}
+      {% macro navlink(id, href, label, icon, needs_tournament=false) %}
         {% if needs_tournament and tournament is none %}
           <li class="nav-item"><span class="nav-link disabled" tabindex="-1" aria-disabled="true"
-              title="Create and open a tournament first (Setup)">{{ label }}</span></li>
+              title="Create and open a tournament first (Setup)"><i class="bi bi-{{ icon }}"></i>{{ label }}</span></li>
         {% else %}
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav==id }}" href="{{ href }}">{{ label }}</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active' if nav==id }}" href="{{ href }}"><i class="bi bi-{{ icon }}"></i>{{ label }}</a></li>
         {% endif %}
       {% endmacro %}
       {% macro divider() %}<li class="nav-item d-none d-lg-flex align-items-center"><span class="nav-divider"></span></li>{% endmacro %}
@@ -32,23 +33,25 @@
       <div class="collapse navbar-collapse" id="nav">
         {# Grouped by role: PREPARE | RUN THE EVENT (needs a tournament) | MANAGE #}
         <ul class="navbar-nav me-auto align-items-lg-center">
-          {{ navlink('setup', '/setup', 'Setup') }}
+          {{ navlink('setup', '/setup', 'Setup', 'sliders') }}
           {{ divider() }}
-          {{ navlink('cashier', '/cashier', 'Cashier', true) }}
-          {{ navlink('dashboard', '/dashboard', 'Dashboard', true) }}
-          {{ navlink('ledger', '/ledger', 'Ledger', true) }}
-          {{ navlink('results', '/results', 'Results', true) }}
-          {{ navlink('payouts', '/payouts', 'Payouts', true) }}
-          {{ navlink('reports', '/reports', 'Reports', true) }}
+          {{ navlink('cashier', '/cashier', 'Cashier', 'cash-coin', true) }}
+          {{ navlink('dashboard', '/dashboard', 'Dashboard', 'speedometer2', true) }}
+          {{ navlink('ledger', '/ledger', 'Ledger', 'journal-text', true) }}
+          {{ navlink('results', '/results', 'Results', 'trophy', true) }}
+          {{ navlink('payouts', '/payouts', 'Payouts', 'wallet2', true) }}
+          {{ navlink('reports', '/reports', 'Reports', 'file-earmark-bar-graph', true) }}
           {{ divider() }}
-          {{ navlink('customers', '/customers', 'Customers') }}
-          {{ navlink('admin', '/admin', 'Admin') }}
-          {{ navlink('help', '/help', 'Help') }}
+          {{ navlink('customers', '/customers', 'Customers', 'people') }}
+          {{ navlink('admin', '/admin', 'Admin', 'shield-lock') }}
+          {{ navlink('help', '/help', 'Help', 'question-circle') }}
         </ul>
         {% if tournament %}
-        <span class="navbar-text text-white">
-          {{ tournament.name }} &middot;
-          <span class="badge bg-light text-dark status-pill">{{ status_label(tournament.status) }}</span>
+        {% set dot = {'DRAFT':'#94a3b8','OPEN':'#22c55e','CLOSED':'#f59e0b','RESULTS_ENTERED':'#38bdf8',
+                      'PAYOUTS_GENERATED':'#a78bfa','SETTLED':'#22c55e','ARCHIVED':'#94a3b8'} %}
+        <span class="badge bg-light text-dark status-pill ms-2" title="{{ tournament.name }}">
+          <i class="bi bi-circle-fill" style="color: {{ dot.get(tournament.status, '#94a3b8') }}; font-size:.6em"></i>
+          {{ status_label(tournament.status) }}
         </span>
         {% endif %}
       </div>

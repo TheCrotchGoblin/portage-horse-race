@@ -24,7 +24,7 @@
       <ul class="list-group list-group-flush">
         {% for item in checklist %}
         <li class="list-group-item d-flex align-items-center py-2">
-          <span class="me-2">{{ '✅' if item.done else '⬜' }}</span>
+          <i class="bi {{ 'bi-check-circle-fill text-success' if item.done else 'bi-circle text-muted' }} me-2"></i>
           <span class="{{ 'text-muted' if item.done }}">{{ item.label }}</span>
         </li>
         {% endfor %}
@@ -38,7 +38,7 @@
           Team names must match teams you've added. <a href="/setup/players-template.csv">Download a sample</a>.</p>
         <form method="post" action="/setup/import-players" enctype="multipart/form-data" class="d-flex gap-2">
           <input type="file" name="file" accept=".csv,text/csv" class="form-control form-control-sm" required>
-          <button class="btn btn-outline-brand btn-sm text-nowrap">Import CSV</button>
+          <button class="btn btn-outline-brand btn-sm text-nowrap"><i class="bi bi-upload me-1"></i>Import CSV</button>
         </form>
       </div>
     </div>
@@ -52,7 +52,7 @@
             Wagering {{ wagering_label(team.wagering_status) }}</span>
           <form method="post" action="/setup/teams/{{ team.id }}/delete" class="d-inline"
                 data-confirm="Remove team {{ team.name }} and its players?">
-            <button class="btn btn-sm btn-outline-danger">Remove</button></form>
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Remove</button></form>
         </span>
       </div>
       <div class="card-body">
@@ -73,7 +73,7 @@
           <label class="form-label small">Add players (one per line, or comma-separated)</label>
           <textarea name="players" class="form-control mb-2" rows="3"
                     placeholder="Jane Doe&#10;John Smith"></textarea>
-          <button class="btn btn-outline-brand btn-sm">Add players</button>
+          <button class="btn btn-outline-brand btn-sm"><i class="bi bi-plus-lg me-1"></i>Add players</button>
         </form>
       </div>
     </div>
@@ -83,7 +83,7 @@
       <label class="form-label fw-semibold">Add a team</label>
       <div class="input-group">
         <input name="team_name" class="form-control" placeholder="e.g. The Ringers" required>
-        <button class="btn btn-brand">Add team</button>
+        <button class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i>Add team</button>
       </div>
       <div class="form-text">You can add teams any time — even after wagering has opened.</div>
     </form>
@@ -121,7 +121,7 @@
               <input name="third_percent" class="form-control form-control-sm {{ 'is-invalid' if 'split' in cinv }}" value="{{ cfg.get('third_percent', tournament.third_bps/100) }}" {{ 'disabled' if locked }}></div>
           </div>
           {% if not locked %}
-          <button class="btn btn-outline-brand btn-sm mt-3 w-100">Save settings</button>
+          <button class="btn btn-outline-brand btn-sm mt-3 w-100"><i class="bi bi-check-lg me-1"></i>Save settings</button>
           {% endif %}
         </form>
       </div>
@@ -132,9 +132,9 @@
       <div class="card-body">
         <p class="small text-muted">Open when you're ready to take cash. Close at the cutoff.</p>
         <form method="post" action="/setup/open" class="mb-1">
-          <button class="btn btn-success w-100">Open wagering (all teams)</button></form>
+          <button class="btn btn-success w-100"><i class="bi bi-unlock me-1"></i>Open wagering (all teams)</button></form>
         <form method="post" action="/setup/close" class="mb-3">
-          <button class="btn btn-outline-secondary w-100">Close wagering (all teams)</button></form>
+          <button class="btn btn-outline-secondary w-100"><i class="bi bi-lock me-1"></i>Close wagering (all teams)</button></form>
         <div class="small fw-semibold mb-1">Or one team at a time:</div>
         {% for team in teams %}
         <div class="d-flex align-items-center justify-content-between mb-1">
@@ -159,7 +159,7 @@
           You can reopen an archived tournament later from the welcome screen.</p>
         <form method="post" action="/setup/archive" data-confirm="Archive '{{ tournament.name }}' and start fresh? Records are kept.">
           <input class="form-control form-control-sm mb-2" name="admin_pin" placeholder="Admin PIN (if set)">
-          <button class="btn btn-outline-danger btn-sm w-100">Archive &amp; start a new tournament</button>
+          <button class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-archive me-1"></i>Archive &amp; start a new tournament</button>
         </form>
       </div>
     </div>

@@ -16,7 +16,7 @@
   <div>Payouts have been generated for <strong>{{ team.name }}</strong>. To change the results you must clear them first.</div>
   <form method="post" action="/results/{{ team.id }}/regenerate" data-confirm="Clear unpaid payouts for {{ team.name }}?">
     <input class="form-control form-control-sm d-inline-block mb-1" style="width:140px" name="admin_pin" placeholder="Admin PIN">
-    <button class="btn btn-sm btn-outline-danger">Clear payouts</button>
+    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-counterclockwise me-1"></i>Clear payouts</button>
   </form>
 </div>
 {% endif %}
@@ -42,7 +42,7 @@
           {% if not has_payouts %}
           <label class="form-label small">Administrator PIN (if set)</label>
           <input name="admin_pin" class="form-control mb-3" placeholder="Admin PIN">
-          <button class="btn btn-brand">Save results</button>
+          <button class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>Save results</button>
           {% endif %}
         </form>
       </div>
@@ -81,11 +81,11 @@
               data-confirm="Generate payouts for {{ team.name }}? Double-check the results above.">
           <input class="form-control form-control-sm mb-2" name="admin_pin" placeholder="Admin PIN (if set)">
           <button class="btn btn-success w-100" {{ 'disabled' if blockers }}>
-            Generate payouts for {{ team.name }}
+            <i class="bi bi-cash-stack me-1"></i>Generate payouts for {{ team.name }}
           </button>
         </form>
         {% else %}
-        <a href="/payouts" class="btn btn-brand w-100">Go to payouts</a>
+        <a href="/payouts" class="btn btn-brand w-100"><i class="bi bi-wallet2 me-1"></i>Go to payouts</a>
         {% endif %}
       </div>
     </div>

@@ -16,7 +16,7 @@
 
 {% if event_settled %}
 <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <span>🔒 <strong>This event is settled.</strong> Financial records are locked. To make a correction, reopen it first.</span>
+  <span><i class="bi bi-lock-fill me-1"></i><strong>This event is settled.</strong> Financial records are locked. To make a correction, reopen it first.</span>
   <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#reopen-event">Reopen for corrections</button>
 </div>
 <div class="collapse mb-3" id="reopen-event">
@@ -34,7 +34,7 @@
 
 {% if unclaimed %}
 <div class="card border-warning shadow-sm mb-4">
-  <div class="card-header bg-warning-subtle"><strong>⚠ Unclaimed pools — need a decision</strong></div>
+  <div class="card-header bg-warning-subtle"><strong><i class="bi bi-exclamation-triangle me-1"></i>Unclaimed pools — need a decision</strong></div>
   <div class="card-body">
     <p class="small text-muted mb-3">A placed player had no wagers, so this pool has no winners.
       Record what happens to it before the event can be marked settled.</p>
@@ -92,7 +92,7 @@
           <form method="post" action="/payouts/{{ p.id }}/pay" class="d-flex gap-1"
                 data-confirm="Mark {{ p.customer.name }} as paid {{ p.amount_cents | dollars }}?">
             {{ pay_method_select() }}
-            <button class="btn btn-success btn-sm">Mark paid</button>
+            <button class="btn btn-success btn-sm"><i class="bi bi-check-lg me-1"></i>Mark paid</button>
           </form>
         </td>
       </tr>
@@ -130,7 +130,7 @@
           <form method="post" action="/payouts/{{ p.id }}/pay" class="d-inline-flex gap-1"
                 data-confirm="Pay {{ p.customer.name }} {{ p.amount_cents | dollars }} again?">
             {{ pay_method_select() }}
-            <button class="btn btn-sm btn-success">Mark paid</button>
+            <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Mark paid</button>
           </form>
           {% endif %}
         </td>

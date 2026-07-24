@@ -5,7 +5,7 @@
   <h1 class="h3 mb-0">Administration</h1>
   <div class="text-end">
     <div class="small text-muted">Version {{ app_version }}</div>
-    <a href="/admin/check-updates" class="btn btn-sm btn-outline-secondary">Check for updates</a>
+    <a href="/admin/check-updates" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Check for updates</a>
   </div>
 </div>
 
@@ -44,7 +44,7 @@
             <input name="current_pin" class="form-control">
           </div>
           {% endif %}
-          <button class="btn btn-brand">Save</button>
+          <button class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>Save</button>
         </form>
 
         {% if has_pin %}
@@ -74,7 +74,7 @@
     <div class="card shadow-sm mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
         <strong>Backups</strong>
-        <form method="post" action="/admin/backup"><button class="btn btn-brand btn-sm">Back up now</button></form>
+        <form method="post" action="/admin/backup"><button class="btn btn-brand btn-sm"><i class="bi bi-cloud-arrow-down me-1"></i>Back up now</button></form>
       </div>
       <div class="card-body">
         <div class="alert {{ 'alert-secondary' if last_backup else 'alert-warning' }} py-2 small">
