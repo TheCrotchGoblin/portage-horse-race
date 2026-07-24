@@ -141,9 +141,9 @@ def test_three_teams_supported(client):
     r = client.post("/setup/open", follow_redirects=True)
     assert "now OPEN" in r.text
     # Dashboard shows all three team cards.
-    home = client.get("/").text
+    board = client.get("/dashboard").text
     for name in ("Front Nine", "Back Nine", "The Ringers"):
-        assert name in home
+        assert name in board
 
 
 def test_per_team_open_close(client):

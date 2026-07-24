@@ -21,7 +21,7 @@ def test_dashboard_matches_reference_scenario(client):
 
     place_wager(client, cid, team_id, player_id, 300)
 
-    r = client.get("/")
+    r = client.get("/dashboard")
     assert r.status_code == 200
     for amount in ["$1,500.00", "$225.00", "$1,275.00", "$765.00", "$382.50", "$127.50"]:
         assert amount in r.text, f"missing {amount} on dashboard"
@@ -40,5 +40,5 @@ def test_cash_count_variance(client):
     # Expected cash = $50.00; count $45 -> $5 short.
     client.post(f"/teams/{team_id}/cash-count", data={"counted": "45.00"})
 
-    r = client.get("/")
+    r = client.get("/dashboard")
     assert "short" in r.text

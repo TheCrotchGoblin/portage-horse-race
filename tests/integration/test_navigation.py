@@ -24,6 +24,21 @@ def test_event_tabs_enabled_with_tournament(client):
     assert "nav-divider" in home  # grouped with separators
 
 
+def test_home_is_welcome_even_with_active_tournament(client):
+    make_tournament(client)  # creates + opens "Test Open"
+    home = client.get("/").text
+    # The logo/home always shows the welcome hub, not the dashboard board.
+    assert "Test Open" in home
+    assert "Take a wager" in home          # context-aware action while wagering is open
+    assert "$0.00" not in home             # not the dashboard money board
+    # The dashboard lives at its own route.
+    assert client.get("/dashboard").status_code == 200
+
+
+def test_home_without_tournament_offers_setup(client):
+    assert "Set up a tournament" in client.get("/").text
+
+
 def test_new_customer_returns_to_list(client):
     r = client.post("/customers/new", data={"name": "Jo Lister"}, follow_redirects=False)
     assert r.status_code == 303
