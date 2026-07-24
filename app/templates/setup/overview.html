@@ -72,12 +72,53 @@
       <div class="card-header"><strong>Open / close wagering</strong></div>
       <div class="card-body">
         <p class="small text-muted">Open when you're ready to take cash. Close at the cutoff.</p>
-        <form method="post" action="/setup/open" class="mb-2">
+        <form method="post" action="/setup/open" class="mb-1">
           <button class="btn btn-success w-100">Open wagering (all teams)</button></form>
-        <form method="post" action="/setup/close">
+        <form method="post" action="/setup/close" class="mb-3">
           <button class="btn btn-outline-secondary w-100">Close wagering (all teams)</button></form>
+        <div class="small fw-semibold mb-1">Or one team at a time:</div>
+        {% for team in teams %}
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="small">{{ team.name }}
+            <span class="badge {{ 'bg-success' if team.wagering_status=='OPEN' else 'bg-secondary' }}">{{ wagering_label(team.wagering_status) }}</span></span>
+          {% if team.wagering_status == 'OPEN' %}
+          <form method="post" action="/setup/close"><input type="hidden" name="team_id" value="{{ team.id }}">
+            <button class="btn btn-sm btn-outline-secondary">Close</button></form>
+          {% else %}
+          <form method="post" action="/setup/open"><input type="hidden" name="team_id" value="{{ team.id }}">
+            <button class="btn btn-sm btn-outline-success">Open</button></form>
+          {% endif %}
+        </div>
+        {% endfor %}
       </div>
     </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header"><strong>Finish this tournament</strong></div>
+      <div class="card-body">
+        <p class="small text-muted">Archiving keeps all records but lets you start a fresh tournament.</p>
+        <form method="post" action="/setup/archive" data-confirm="Archive '{{ tournament.name }}' and start fresh? Records are kept.">
+          <input class="form-control form-control-sm mb-2" name="admin_pin" placeholder="Admin PIN (if set)">
+          <button class="btn btn-outline-danger btn-sm w-100">Archive &amp; start a new tournament</button>
+        </form>
+      </div>
+    </div>
+
+    {% if archived %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-header"><strong>Archived tournaments</strong></div>
+      <ul class="list-group list-group-flush">
+        {% for a in archived %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+          <span class="small">{{ a.name }} <span class="text-muted">{{ a.event_date or '' }}</span></span>
+          <form method="post" action="/setup/{{ a.id }}/reopen">
+            <input class="form-control form-control-sm d-inline-block mb-0" style="width:110px" name="admin_pin" placeholder="PIN">
+            <button class="btn btn-sm btn-outline-secondary">Reopen</button></form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
 
     <div class="card shadow-sm">
       <div class="card-header"><strong>Financial settings</strong></div>

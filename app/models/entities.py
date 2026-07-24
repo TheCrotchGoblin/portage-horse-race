@@ -155,6 +155,12 @@ class Placement(Base):
     finalized_at: Mapped[datetime | None] = mapped_column()
     finalized_by: Mapped[str | None] = mapped_column(String(120))
 
+    # Disposition of an unclaimed pool when the placed player had no wagers (FR-108).
+    disposition: Mapped[str | None] = mapped_column(String(40))  # return_to_club | carryover | manual
+    disposition_note: Mapped[str | None] = mapped_column(Text)
+    disposition_by: Mapped[str | None] = mapped_column(String(120))
+    disposition_at: Mapped[datetime | None] = mapped_column()
+
     player: Mapped[Player] = relationship()
 
     __table_args__ = (

@@ -48,6 +48,32 @@ def init_engine(db_url: str, *, echo: bool = False) -> Engine:
     return new_engine
 
 
+# Columns added after the initial 0.1.0 schema. Kept here so existing databases
+# upgrade in place (idempotent ALTER TABLE) without a full migration framework.
+_ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    "placements": {
+        "disposition": "TEXT",
+        "disposition_note": "TEXT",
+        "disposition_by": "VARCHAR(120)",
+        "disposition_at": "DATETIME",
+    },
+}
+
+
+def ensure_schema() -> None:
+    """Add any columns introduced after 0.1.0 to an existing database."""
+    if engine is None:
+        raise RuntimeError("init_engine() must be called before ensure_schema()")
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        for table, columns in _ADDED_COLUMNS.items():
+            existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+
+
 def create_all() -> None:
     """Create tables directly (used for tests and first-run bootstrap)."""
     if engine is None:
@@ -56,6 +82,7 @@ def create_all() -> None:
     import app.models  # noqa: F401
 
     Base.metadata.create_all(engine)
+    ensure_schema()
 
 
 def get_session() -> Iterator[Session]:

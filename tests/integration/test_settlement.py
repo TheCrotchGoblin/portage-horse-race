@@ -113,3 +113,22 @@ def test_unclaimed_pool_when_placed_player_has_no_wagers(client):
         ).all()
         # Only Alice's first-place pool is paid out; 2nd and 3rd are unclaimed.
         assert all(p.placement.position == 1 for p in payouts)
+
+    # The payouts screen surfaces the unclaimed pools needing a decision.
+    r = client.get("/payouts")
+    assert "Unclaimed pools" in r.text
+
+    # Record a disposition for each unclaimed placement.
+    with database.SessionLocal() as s:
+        unclaimed = s.scalars(
+            select(Placement).where(Placement.team_id == team_id, Placement.position.in_([2, 3]))
+        ).all()
+        unclaimed_ids = [p.id for p in unclaimed]
+    for pid in unclaimed_ids:
+        r = client.post(f"/payouts/placements/{pid}/dispose",
+                        data={"disposition": "return_to_club", "note": ""}, follow_redirects=False)
+        assert r.status_code == 303
+
+    with database.SessionLocal() as s:
+        for pid in unclaimed_ids:
+            assert s.get(Placement, pid).disposition == "return_to_club"

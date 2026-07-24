@@ -66,6 +66,24 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
         }
         return render(request, "reports/reconciliation.html", ctx)
 
+    if kind == "results":
+        from app.services import payouts as payout_service
+        teams = session.scalars(
+            select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
+        ).all()
+        results = []
+        for team in teams:
+            previews = payout_service.placement_previews(session, tournament, team)
+            rows = []
+            for pv in previews:
+                # Disclose the deterministic remainder-cent allocation (BR-12 / §8.3):
+                # `remainder` entries (the earliest by time) each receive one extra cent.
+                remainder = pv.pool_cents - pv.per_entry_cents * pv.winning_entries if pv.winning_entries else 0
+                rows.append({"pv": pv, "remainder": remainder})
+            results.append({"team": team, "rows": rows})
+        ctx["results"] = results
+        return render(request, "reports/results.html", ctx)
+
     if kind == "payouts":
         ctx["payouts"] = session.scalars(
             select(Payout).join(Placement, Payout.placement_id == Placement.id)

@@ -201,6 +201,43 @@ def open_wagering(session: Session, tournament: Tournament, operator: str, team_
     )
 
 
+def archive_tournament(session: Session, tournament: Tournament, operator: str) -> None:
+    before = {"status": tournament.status}
+    tournament.status = TournamentStatus.ARCHIVED
+    for team in session.scalars(select(Team).where(Team.tournament_id == tournament.id)).all():
+        team.wagering_status = WageringStatus.CLOSED
+    audit.record(
+        session,
+        action_type="tournament_archived",
+        actor=operator,
+        tournament_id=tournament.id,
+        entity_type="tournament",
+        entity_id=tournament.id,
+        before=before,
+        after={"status": TournamentStatus.ARCHIVED},
+    )
+
+
+def reopen_tournament(session: Session, tournament: Tournament, operator: str) -> None:
+    active = session.scalar(
+        select(func.count(Tournament.id)).where(Tournament.status != TournamentStatus.ARCHIVED)
+    )
+    if active:
+        raise SetupError("Archive the current tournament before reopening an older one.")
+    before = {"status": tournament.status}
+    tournament.status = TournamentStatus.CLOSED
+    audit.record(
+        session,
+        action_type="tournament_reopened",
+        actor=operator,
+        tournament_id=tournament.id,
+        entity_type="tournament",
+        entity_id=tournament.id,
+        before=before,
+        after={"status": TournamentStatus.CLOSED},
+    )
+
+
 def close_wagering(session: Session, tournament: Tournament, operator: str, team_id: int | None = None) -> None:
     query = select(Team).where(Team.tournament_id == tournament.id)
     if team_id is not None:

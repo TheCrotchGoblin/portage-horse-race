@@ -223,6 +223,49 @@ def regenerate_payouts(session: Session, tournament: Tournament, team: Team, *, 
     )
 
 
+DISPOSITIONS = {
+    "return_to_club": "Return to the club",
+    "carryover": "Carry over to a future event",
+    "manual": "Handle manually (see note)",
+}
+
+
+def unclaimed_placements(session: Session, tournament_id: int) -> list[Placement]:
+    """Finalized placements whose pool went to nobody (placed player had no wagers)."""
+    placements = session.scalars(
+        select(Placement).join(Team, Placement.team_id == Team.id)
+        .where(Team.tournament_id == tournament_id, Placement.finalized_at.is_not(None),
+               Placement.allocated_pool_cents > 0)
+    ).all()
+    result = []
+    for p in placements:
+        payout_count = session.scalar(select(func.count(Payout.id)).where(Payout.placement_id == p.id)) or 0
+        if payout_count == 0:
+            result.append(p)
+    return result
+
+
+def set_disposition(session: Session, placement: Placement, *, disposition: str, note: str, operator: str) -> Placement:
+    if disposition not in DISPOSITIONS:
+        raise PayoutError("Choose how the unclaimed pool should be handled.")
+    if disposition == "manual" and not (note or "").strip():
+        raise PayoutError("Please add a note explaining how the unclaimed pool is handled.")
+    placement.disposition = disposition
+    placement.disposition_note = (note or "").strip() or None
+    placement.disposition_by = operator
+    placement.disposition_at = utcnow()
+    audit.record(
+        session,
+        action_type="unclaimed_disposition",
+        actor=operator,
+        entity_type="placement",
+        entity_id=placement.id,
+        after={"disposition": disposition, "pool_cents": placement.allocated_pool_cents},
+        reason=placement.disposition_note,
+    )
+    return placement
+
+
 def pay_payout(session: Session, payout: Payout, *, method: str, operator: str, note: str | None = None) -> Payout:
     if payout.status == PayoutStatus.PAID:
         raise PayoutError("This payout has already been paid.")
@@ -276,5 +319,7 @@ def check_settled(session: Session, tournament: Tournament) -> None:
         .join(Team, Placement.team_id == Team.id)
         .where(Team.tournament_id == tournament.id)
     )
-    if total and not unpaid and tournament.status == TournamentStatus.PAYOUTS_GENERATED:
+    # An unclaimed pool must be formally disposed before the event is SETTLED (FR-108).
+    undisposed = [p for p in unclaimed_placements(session, tournament.id) if p.disposition is None]
+    if total and not unpaid and not undisposed and tournament.status == TournamentStatus.PAYOUTS_GENERATED:
         tournament.status = TournamentStatus.SETTLED

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Results report{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ tournament.name }} — Results report</h1>
+  <button class="btn btn-brand no-print" onclick="window.print()">Print</button>
+</div>
+
+{% for r in results %}
+<div class="card mb-3">
+  <div class="card-header"><strong>{{ r.team.name }}</strong></div>
+  <div class="card-body">
+    <table class="table table-sm">
+      <thead><tr>
+        <th>Place</th><th>Player</th><th class="text-end">Pool</th>
+        <th class="text-end">Winning entries</th><th class="text-end">Per entry</th><th>Remainder allocation</th>
+      </tr></thead>
+      <tbody>
+        {% for row in r.rows %}
+        {% set pv = row.pv %}
+        <tr class="{{ 'table-warning' if pv.unclaimed and pv.player }}">
+          <td>{{ position_label(pv.position) }}</td>
+          <td>{{ pv.player.name if pv.player else '—' }}</td>
+          <td class="text-end money">{{ pv.pool_cents | dollars }}</td>
+          <td class="text-end">{{ pv.winning_entries }}</td>
+          <td class="text-end money">{% if pv.player and not pv.unclaimed %}{{ pv.per_entry_cents | dollars }}{% else %}—{% endif %}</td>
+          <td class="small">
+            {% if pv.unclaimed and pv.player %}<span class="text-danger">Unclaimed — no wagers</span>
+            {% elif pv.player and row.remainder %}
+              +1¢ to the first {{ row.remainder }} entrie(s) by time so the pool reconciles exactly
+            {% elif pv.player %}Divides evenly (no remainder){% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+<p class="text-muted small">Per-entry amounts use whole-cent deterministic allocation: any leftover cents are
+given to the earliest entries by transaction time so every pool balances to the exact cent.</p>
+{% endblock %}

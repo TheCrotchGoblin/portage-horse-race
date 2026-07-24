@@ -30,6 +30,10 @@
       </select>
     </div>
     <div class="col-md-2">
+      <label class="form-label small">Customer</label>
+      <input name="customer_name" class="form-control form-control-sm" value="{{ filters.customer_name or '' }}" placeholder="name contains…">
+    </div>
+    <div class="col-md-2">
       <label class="form-label small">Operator</label>
       <input name="operator" class="form-control form-control-sm" value="{{ filters.operator or '' }}">
     </div>

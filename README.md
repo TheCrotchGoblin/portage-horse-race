@@ -33,11 +33,17 @@ Your data lives in `%LOCALAPPDATA%\PortageHorseRace` and is **kept when you inst
    check the preview, and **Generate payouts**.
 5. **Payouts** — Work down the **To pay** list; press **Mark paid** for each customer. A
    customer can't be paid twice.
-6. **Reports & backup** — **Reports** has printable summaries and CSV exports. **Backup**
-   lets you make or restore a backup at any time.
+6. **Unclaimed pools** — if a placed player had no wagers, that pool appears on the Payouts
+   screen and you record what happens to it (return to club / carry over / handle manually)
+   before the event is marked settled.
+7. **Reports & backup** — **Reports** has printable summaries (including a Results report that
+   discloses the exact remainder-cent allocation) and CSV exports. **Backup** lets you make or
+   restore a backup at any time.
+8. **Next event** — when you're done, **Archive & start a new tournament** from Setup. All
+   past records are kept and an archived tournament can be reopened later.
 
 An **administrator PIN** (set under *Backup*) can protect voids, result changes, payout
-reversals and restores.
+reversals, restores and archiving. It is stored only as a salted hash, never in plain text.
 
 ---
 

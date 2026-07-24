@@ -22,6 +22,7 @@ def ledger(
     team_id: int | None = None,
     player_id: int | None = None,
     customer_id: int | None = None,
+    customer_name: str | None = None,
     operator: str | None = None,
     status: str | None = None,
     date_from: str | None = None,
@@ -34,6 +35,7 @@ def ledger(
 
     filters = LedgerFilters(
         team_id=team_id, player_id=player_id, customer_id=customer_id,
+        customer_name=customer_name or None,
         operator=operator or None, status=status or None,
         date_from=date_from or None, date_to=date_to or None,
     )

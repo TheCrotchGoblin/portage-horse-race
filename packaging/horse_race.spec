@@ -33,7 +33,7 @@ exe = EXE(
     exclude_binaries=True,
     name="PortageHorseRace",
     console=False,          # no console window for a desktop app
-    icon=None,
+    icon="icon.ico",
 )
 coll = COLLECT(
     exe,

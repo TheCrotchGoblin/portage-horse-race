@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.formatting import dollars_to_cents
-from app.models import Player, Team
-from app.routes.deps import base_context, get_active_tournament, operator_name
+from app.models import Player, Team, Tournament
+from app.models.enums import TournamentStatus
+from app.routes.deps import admin_pin_ok, base_context, get_active_tournament, operator_name
 from app.services import setup as setup_service
 from app.services.setup import SetupError
 from app.templating import flash, render
@@ -31,6 +32,10 @@ def overview(request: Request, session: Session = Depends(get_session)):
         select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
     ).all()
     ctx["locked"] = setup_service.has_sales(session, tournament.id)
+    ctx["archived"] = session.scalars(
+        select(Tournament).where(Tournament.status == TournamentStatus.ARCHIVED)
+        .order_by(Tournament.created_at.desc())
+    ).all()
     return render(request, "setup/overview.html", ctx)
 
 
@@ -176,4 +181,35 @@ def close_wagering(request: Request, session: Session = Depends(get_session), te
         session, tournament, operator_name(request), int(team_id) if team_id else None
     )
     flash(request, "Wagering closed. No new wagers will be accepted.")
+    return _redirect("/setup")
+
+
+@router.post("/archive")
+def archive(request: Request, session: Session = Depends(get_session), admin_pin: str = Form("")):
+    tournament = get_active_tournament(session)
+    if tournament is None:
+        return _redirect("/setup/new")
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN — nothing was archived.", "danger")
+        return _redirect("/setup")
+    setup_service.archive_tournament(session, tournament, operator_name(request))
+    flash(request, f"'{tournament.name}' archived. You can start a new tournament now.")
+    return _redirect("/setup/new")
+
+
+@router.post("/{tournament_id}/reopen")
+def reopen(request: Request, tournament_id: int, session: Session = Depends(get_session), admin_pin: str = Form("")):
+    tournament = session.get(Tournament, tournament_id)
+    if tournament is None:
+        flash(request, "Tournament not found.", "danger")
+        return _redirect("/setup")
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN.", "danger")
+        return _redirect("/setup")
+    try:
+        setup_service.reopen_tournament(session, tournament, operator_name(request))
+    except SetupError as exc:
+        flash(request, str(exc), "danger")
+        return _redirect("/setup")
+    flash(request, f"'{tournament.name}' reopened.")
     return _redirect("/setup")

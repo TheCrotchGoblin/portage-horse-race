@@ -138,8 +138,14 @@
           <input type="hidden" name="player_id" value="{{ selected_player.id }}">
           <input type="hidden" name="quantity" value="{{ qty }}">
           <label class="form-label small">Cash received</label>
-          <div class="input-group mb-3"><span class="input-group-text">$</span>
-            <input name="received" class="form-control" value="{{ '%.2f' % (amount_due/100) }}"></div>
+          <div class="input-group mb-2"><span class="input-group-text">$</span>
+            <input name="received" id="received" class="form-control"
+                   value="{{ '%.2f' % (amount_due/100) }}"
+                   data-due="{{ amount_due }}" oninput="updateChange()"></div>
+          <div class="d-flex justify-content-between mb-3">
+            <span class="text-muted">Change due</span>
+            <span class="money" id="change-due">$0.00</span>
+          </div>
           <button class="btn btn-success btn-lg w-100"
                   data-confirm="Record {{ qty }} entrie(s) for {{ selected_customer.name }} — {{ amount_due | dollars }}?">
             Record payment
@@ -190,4 +196,18 @@
     </div>
   </div>
 </div>
+
+<script>
+function updateChange() {
+  var el = document.getElementById('received');
+  if (!el) return;
+  var due = parseInt(el.getAttribute('data-due'), 10) || 0;
+  var received = Math.round(parseFloat(el.value.replace(/[$,]/g, '')) * 100) || 0;
+  var change = received - due;
+  var out = document.getElementById('change-due');
+  out.textContent = (change < 0 ? '-$' : '$') + (Math.abs(change) / 100).toFixed(2);
+  out.className = 'money ' + (change < 0 ? 'text-danger' : 'text-success');
+}
+document.addEventListener('DOMContentLoaded', updateChange);
+</script>
 {% endblock %}

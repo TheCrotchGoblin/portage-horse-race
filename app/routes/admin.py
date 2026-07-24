@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app import database
 from app.database import get_session
-from app.routes.deps import base_context, get_setting, operator_name, set_setting
+from app.routes.deps import admin_pin_ok, base_context, has_admin_pin, operator_name, set_admin_pin
 from app.services import audit
 from app.services import backups as backup_service
 from app.templating import flash, render
@@ -23,7 +23,7 @@ def admin(request: Request, session: Session = Depends(get_session)):
     ctx.update({
         "backups": [{"name": b.name, "size_kb": round(b.stat().st_size / 1024, 1)} for b in backups],
         "operator": operator_name(request),
-        "has_pin": bool(get_setting(session, "admin_pin")),
+        "has_pin": has_admin_pin(session),
         "backup_dir": str(settings.backup_dir),
     })
     return render(request, "admin/index.html", ctx)
@@ -49,8 +49,8 @@ def restore(request: Request, backup_name: str = Form(...), admin_pin: str = For
     # own short-lived session for the PIN check and closes it first.
     settings = request.app.state.settings
     with database.SessionLocal() as check_session:
-        configured_pin = get_setting(check_session, "admin_pin")
-    if configured_pin and admin_pin != configured_pin:
+        pin_ok = admin_pin_ok(check_session, admin_pin)
+    if not pin_ok:
         flash(request, "Incorrect administrator PIN — restore cancelled.", "danger")
         return RedirectResponse("/admin", status_code=303)
 
@@ -85,11 +85,10 @@ def save_settings(
         request.session["operator"] = operator.strip()
 
     if new_pin.strip():
-        existing = get_setting(session, "admin_pin")
-        if existing and current_pin != existing:
+        if has_admin_pin(session) and not admin_pin_ok(session, current_pin):
             flash(request, "To change the PIN you must enter the current one.", "danger")
             return RedirectResponse("/admin", status_code=303)
-        set_setting(session, "admin_pin", new_pin.strip())
+        set_admin_pin(session, new_pin.strip())
         flash(request, "Settings saved. Administrator PIN updated.")
     else:
         flash(request, "Settings saved.")

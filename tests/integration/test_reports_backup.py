@@ -39,10 +39,30 @@ def test_csv_exports(client):
 
 def test_print_views_render(client):
     make_tournament(client)
-    for kind in ["team-summary", "payouts", "reconciliation"]:
+    for kind in ["team-summary", "results", "payouts", "reconciliation"]:
         r = client.get(f"/reports/print/{kind}")
         assert r.status_code == 200
         assert "Test Open" in r.text
+
+
+def test_results_report_discloses_remainder(client):
+    """3rd pool $127.50 over 95 entries -> 20 remainder cents disclosed (BR-12 / §8.3)."""
+    make_tournament(client)
+    with database.SessionLocal() as s:
+        team = s.scalars(select(Team).order_by(Team.id)).first()
+        players = s.scalars(select(Player).where(Player.team_id == team.id).order_by(Player.id)).all()
+        team_id = team.id
+        alice, bob, carol = [p.id for p in players]
+    cid = _new_customer(client, "R")
+    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": alice, "quantity": "5"})
+    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": bob, "quantity": "200"})
+    client.post("/wagers", data={"customer_id": cid, "team_id": team_id, "player_id": carol, "quantity": "95"})
+    client.post(f"/results/{team_id}/placements", data={
+        "first_player_id": alice, "second_player_id": bob, "third_player_id": carol})
+
+    r = client.get("/reports/print/results")
+    assert r.status_code == 200
+    assert "first 20 entrie" in r.text  # 12750 - 134*95 = 20 remainder cents
 
 
 def test_backup_then_restore_drops_later_transaction(client):

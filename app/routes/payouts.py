@@ -35,8 +35,38 @@ def payouts(request: Request, session: Session = Depends(get_session)):
         "settled": [p for p in rows if p.status != PayoutStatus.UNPAID],
         "unpaid_total": sum(p.amount_cents for p in rows if p.status == PayoutStatus.UNPAID),
         "paid_total": sum(p.amount_cents for p in rows if p.status == PayoutStatus.PAID),
+        "unclaimed": payout_service.unclaimed_placements(session, tournament.id),
+        "dispositions": payout_service.DISPOSITIONS,
     })
     return render(request, "payouts/index.html", ctx)
+
+
+@router.post("/placements/{placement_id}/dispose")
+def dispose(
+    request: Request,
+    placement_id: int,
+    session: Session = Depends(get_session),
+    disposition: str = Form(...),
+    note: str = Form(""),
+    admin_pin: str = Form(""),
+):
+    placement = session.get(Placement, placement_id)
+    if placement is None:
+        flash(request, "Placement not found.", "danger")
+        return RedirectResponse("/payouts", status_code=303)
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN.", "danger")
+        return RedirectResponse("/payouts", status_code=303)
+    try:
+        payout_service.set_disposition(
+            session, placement, disposition=disposition, note=note, operator=operator_name(request)
+        )
+        payout_service.check_settled(session, base_context(request, session)["tournament"])
+    except PayoutError as exc:
+        flash(request, str(exc), "danger")
+        return RedirectResponse("/payouts", status_code=303)
+    flash(request, "Unclaimed pool recorded.")
+    return RedirectResponse("/payouts", status_code=303)
 
 
 @router.post("/{payout_id}/pay")

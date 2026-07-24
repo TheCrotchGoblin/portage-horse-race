@@ -9,6 +9,40 @@
   </div>
 </div>
 
+{% if unclaimed %}
+<div class="card border-warning shadow-sm mb-4">
+  <div class="card-header bg-warning-subtle"><strong>⚠ Unclaimed pools — need a decision</strong></div>
+  <div class="card-body">
+    <p class="small text-muted mb-3">A placed player had no wagers, so this pool has no winners.
+      Record what happens to it before the event can be marked settled.</p>
+    {% for pl in unclaimed %}
+    <div class="border rounded p-2 mb-2">
+      <div class="d-flex justify-content-between">
+        <div><strong>{{ pl.player.team.name }} · {{ position_label(pl.position) }}</strong> — {{ pl.player.name }}
+          <span class="money ms-2">{{ pl.allocated_pool_cents | dollars }}</span></div>
+        {% if pl.disposition %}<span class="badge bg-success">{{ dispositions[pl.disposition] }}</span>{% endif %}
+      </div>
+      {% if not pl.disposition %}
+      <form method="post" action="/payouts/placements/{{ pl.id }}/dispose" class="row g-2 mt-1 align-items-end">
+        <div class="col-md-4">
+          <select name="disposition" class="form-select form-select-sm" required>
+            <option value="">— choose —</option>
+            {% for key, label in dispositions.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4"><input name="note" class="form-control form-control-sm" placeholder="Note (required if manual)"></div>
+        <div class="col-md-2"><input name="admin_pin" class="form-control form-control-sm" placeholder="Admin PIN"></div>
+        <div class="col-md-2"><button class="btn btn-sm btn-warning w-100">Record</button></div>
+      </form>
+      {% else %}
+      <div class="small text-muted">{{ pl.disposition_note or '' }} — {{ pl.disposition_by or '' }} {{ pl.disposition_at | datetime }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="card shadow-sm mb-4">
   <div class="card-header bg-brand text-white"><strong>To pay ({{ unpaid|length }})</strong></div>
   <table class="table table-hover mb-0">
@@ -26,9 +60,10 @@
         <td>
           <form method="post" action="/payouts/{{ p.id }}/pay" class="d-flex gap-1"
                 data-confirm="Mark {{ p.customer.name }} as paid {{ p.amount_cents | dollars }}?">
-            <select name="method" class="form-select form-select-sm" style="width:90px">
+            <select name="method" class="form-select form-select-sm" style="width:84px">
               <option value="cash">Cash</option><option value="cheque">Cheque</option><option value="other">Other</option>
             </select>
+            <input name="note" class="form-control form-control-sm" style="width:120px" placeholder="Note (optional)">
             <button class="btn btn-success btn-sm">Mark paid</button>
           </form>
         </td>

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AuditLog, Player, Team, Wager
+from app.models import AuditLog, Customer, Player, Team, Wager
 
 
 @dataclass
@@ -14,6 +14,7 @@ class LedgerFilters:
     team_id: int | None = None
     player_id: int | None = None
     customer_id: int | None = None
+    customer_name: str | None = None
     operator: str | None = None
     status: str | None = None
     date_from: str | None = None  # ISO date (inclusive)
@@ -35,6 +36,12 @@ def query_wagers(
         stmt = stmt.where(Wager.player_id == filters.player_id)
     if filters.customer_id:
         stmt = stmt.where(Wager.customer_id == filters.customer_id)
+    if filters.customer_name:
+        stmt = stmt.where(
+            Wager.customer_id.in_(
+                select(Customer.id).where(Customer.name.ilike(f"%{filters.customer_name}%"))
+            )
+        )
     if filters.operator:
         stmt = stmt.where(Wager.operator_id == filters.operator)
     if filters.status:

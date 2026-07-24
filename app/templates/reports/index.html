@@ -2,6 +2,10 @@
 {% block title %}Reports{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">Reports &amp; exports</h1>
+<div class="alert alert-secondary py-2 small">
+  🔒 These reports and CSV files contain customers' names and contact details. Treat them as
+  sensitive — share only with authorised tournament staff and delete copies when no longer needed.
+</div>
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card shadow-sm h-100"><div class="card-body">
@@ -9,6 +13,7 @@
       <p class="text-muted small">Open, then use your browser's Print (Ctrl+P) to print or save as PDF.</p>
       <div class="d-grid gap-2">
         <a class="btn btn-outline-brand" href="/reports/print/team-summary" target="_blank">Team summary</a>
+        <a class="btn btn-outline-brand" href="/reports/print/results" target="_blank">Results report</a>
         <a class="btn btn-outline-brand" href="/reports/print/payouts" target="_blank">Payout register</a>
         <a class="btn btn-outline-brand" href="/reports/print/reconciliation" target="_blank">Final reconciliation</a>
       </div>
