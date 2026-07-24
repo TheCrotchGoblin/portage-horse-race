@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import secrets
 import socket
 
 from fastapi import Request
@@ -50,21 +51,47 @@ def _hash_pin(pin: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", pin.encode(), bytes.fromhex(salt), 120_000).hex()
 
 
-def set_admin_pin(session: Session, pin: str) -> None:
-    """Store a salted hash of the admin PIN (never the PIN itself, NFR-08)."""
+def _normalize_code(code: str) -> str:
+    return "".join(ch for ch in (code or "") if ch.isdigit())
+
+
+def set_admin_pin(session: Session, pin: str) -> str:
+    """Store a salted hash of the admin PIN (never the PIN itself, NFR-08) and a
+    fresh recovery code. Returns the plaintext recovery code to show once."""
     salt = get_setting(session, "pin_salt")
     if not salt:
         salt = os.urandom(16).hex()
         set_setting(session, "pin_salt", salt)
     set_setting(session, "admin_pin_hash", _hash_pin(pin, salt))
-    # Drop any legacy plaintext value.
-    legacy = session.get(Setting, "admin_pin")
+
+    digits = f"{secrets.randbelow(10**8):08d}"
+    recovery = f"{digits[:4]}-{digits[4:]}"
+    set_setting(session, "recovery_code_hash", _hash_pin(digits, salt))
+
+    legacy = session.get(Setting, "admin_pin")  # drop any legacy plaintext value
     if legacy is not None:
         session.delete(legacy)
+    return recovery
 
 
 def has_admin_pin(session: Session) -> bool:
     return bool(get_setting(session, "admin_pin_hash") or get_setting(session, "admin_pin"))
+
+
+def recovery_code_ok(session: Session, code: str) -> bool:
+    salt = get_setting(session, "pin_salt")
+    stored = get_setting(session, "recovery_code_hash")
+    if not salt or not stored:
+        return False
+    return hmac.compare_digest(_hash_pin(_normalize_code(code), salt), stored)
+
+
+def clear_admin_pin(session: Session) -> None:
+    """Remove the admin PIN and its recovery code (used by recovery flows)."""
+    for key in ("admin_pin_hash", "admin_pin", "recovery_code_hash", "pin_salt"):
+        row = session.get(Setting, key)
+        if row is not None:
+            session.delete(row)
 
 
 def admin_pin_ok(session: Session, pin: str | None) -> bool:

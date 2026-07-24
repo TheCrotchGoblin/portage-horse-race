@@ -41,6 +41,16 @@ def test_delete_customer_with_wagers_blocked(client):
         assert s.get(Customer, cid) is not None  # kept
 
 
+def test_customer_history_is_lifetime_and_labelled(client):
+    make_tournament(client)  # creates "Test Open"
+    team_id, player_id = _ids(client)
+    cid = _new(client, "Historian")
+    place_wager(client, cid, team_id, player_id, 2)
+    r = client.get(f"/customers/{cid}")
+    assert "all tournaments" in r.text.lower()  # scope stated
+    assert "Test Open" in r.text                # each wager labelled with its tournament
+
+
 def test_clear_unused_customers(client):
     make_tournament(client)
     team_id, player_id = _ids(client)

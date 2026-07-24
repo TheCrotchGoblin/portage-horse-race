@@ -131,6 +131,7 @@ class Wager(Base):
     customer: Mapped[Customer] = relationship()
     player: Mapped[Player] = relationship()
     team: Mapped[Team] = relationship()
+    tournament: Mapped["Tournament"] = relationship()
 
     __table_args__ = (
         CheckConstraint("quantity > 0", name="ck_wager_qty_pos"),

@@ -7,7 +7,15 @@ from sqlalchemy.orm import Session
 
 from app import database
 from app.database import get_session
-from app.routes.deps import admin_pin_ok, base_context, has_admin_pin, operator_name, set_admin_pin
+from app.routes.deps import (
+    admin_pin_ok,
+    base_context,
+    clear_admin_pin,
+    has_admin_pin,
+    operator_name,
+    recovery_code_ok,
+    set_admin_pin,
+)
 from app.services import audit
 from app.services import backups as backup_service
 from app.templating import flash, render
@@ -25,6 +33,7 @@ def admin(request: Request, session: Session = Depends(get_session)):
         "operator": operator_name(request),
         "has_pin": has_admin_pin(session),
         "backup_dir": str(settings.backup_dir),
+        "data_dir": str(settings.data_dir),
     })
     return render(request, "admin/index.html", ctx)
 
@@ -88,8 +97,23 @@ def save_settings(
         if has_admin_pin(session) and not admin_pin_ok(session, current_pin):
             flash(request, "To change the PIN you must enter the current one.", "danger")
             return RedirectResponse("/admin", status_code=303)
-        set_admin_pin(session, new_pin.strip())
-        flash(request, "Settings saved. Administrator PIN updated.")
+        recovery = set_admin_pin(session, new_pin.strip())
+        flash(request,
+              f"Administrator PIN saved. RECOVERY CODE: {recovery} — write this down and keep it safe. "
+              f"You'll need it to reset the PIN if you forget it.", "warning")
     else:
         flash(request, "Settings saved.")
+    return RedirectResponse("/admin", status_code=303)
+
+
+@router.post("/forgot-pin")
+def forgot_pin(request: Request, session: Session = Depends(get_session), recovery_code: str = Form("")):
+    if not has_admin_pin(session):
+        flash(request, "No administrator PIN is set.", "info")
+        return RedirectResponse("/admin", status_code=303)
+    if not recovery_code_ok(session, recovery_code):
+        flash(request, "That recovery code is not correct.", "danger")
+        return RedirectResponse("/admin", status_code=303)
+    clear_admin_pin(session)
+    flash(request, "Recovery code accepted — the administrator PIN has been cleared. Set a new one below.")
     return RedirectResponse("/admin", status_code=303)

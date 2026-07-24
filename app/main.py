@@ -59,6 +59,27 @@ def _integrity_check(settings: Settings) -> None:
         logger.info("Database integrity check passed")
 
 
+def _check_pin_reset(settings: Settings) -> None:
+    """Emergency PIN recovery: if a file named ``reset-pin*`` exists in the data
+    directory, clear the administrator PIN and remove the file. Physical access
+    to the local data folder is the authority for this (spec §4/NFR-08)."""
+    from app import database
+    from app.routes.deps import clear_admin_pin
+
+    matches = list(settings.data_dir.glob("reset-pin*"))
+    if not matches or database.SessionLocal is None:
+        return
+    with database.SessionLocal() as session:
+        clear_admin_pin(session)
+        session.commit()
+    for f in matches:
+        try:
+            f.unlink()
+        except OSError:
+            pass
+    logger.warning("Administrator PIN was reset via a reset-pin file.")
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or default_settings
     _configure_logging(settings)
@@ -68,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     first_run = not settings.db_path.exists()
     create_all()  # idempotent; safe on every start until Alembic baseline lands
+    _check_pin_reset(settings)
     if not first_run:
         _integrity_check(settings)
         backups.backup_database(settings.db_path, settings.backup_dir, reason="startup")

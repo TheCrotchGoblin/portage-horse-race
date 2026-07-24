@@ -50,10 +50,6 @@ def _overview_context(request: Request, session: Session, tournament: Tournament
         select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
     ).all()
     ctx["locked"] = setup_service.has_sales(session, tournament.id)
-    ctx["archived"] = session.scalars(
-        select(Tournament).where(Tournament.status == TournamentStatus.ARCHIVED)
-        .order_by(Tournament.created_at.desc())
-    ).all()
     return ctx
 
 

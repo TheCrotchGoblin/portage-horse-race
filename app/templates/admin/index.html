@@ -27,6 +27,26 @@
           {% endif %}
           <button class="btn btn-brand">Save</button>
         </form>
+
+        {% if has_pin %}
+        <hr>
+        <button class="btn btn-link btn-sm p-0" data-bs-toggle="collapse" data-bs-target="#forgot-pin">Forgot your PIN?</button>
+        <div class="collapse mt-2" id="forgot-pin">
+          <form method="post" action="/admin/forgot-pin">
+            <label class="form-label small">Enter your recovery code</label>
+            <div class="input-group input-group-sm">
+              <input name="recovery_code" class="form-control" placeholder="e.g. 4821-7734">
+              <button class="btn btn-outline-danger">Reset PIN</button>
+            </div>
+          </form>
+          <div class="form-text mt-2">
+            Lost the recovery code too? Close the app, open this folder:<br>
+            <code>{{ data_dir }}</code><br>
+            create an empty file whose name starts with <strong>reset-pin</strong>, then start the app
+            again — the PIN will be cleared automatically.
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>

@@ -34,20 +34,22 @@
   </div>
   <div class="col-md-8">
     <div class="card shadow-sm mb-3">
-      <div class="card-header"><strong>Wagers</strong></div>
+      <div class="card-header"><strong>Wagers</strong>
+        <span class="text-muted small">— complete history across all tournaments</span></div>
       <table class="table table-sm mb-0">
-        <thead><tr><th>When</th><th>Team / Player</th><th>Entries</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
+        <thead><tr><th>When</th><th>Tournament</th><th>Team / Player</th><th>Entries</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
         <tbody>
           {% for w in history.wagers %}
           <tr class="{{ 'text-muted' if w.status=='void' }}">
             <td class="small">{{ w.created_at | datetime }}</td>
+            <td class="small">{{ w.tournament.name }}</td>
             <td>{{ w.team.name }} · {{ w.player.name }}</td>
             <td>{{ w.quantity }}</td>
             <td class="text-end money">{{ w.amount_cents | dollars }}</td>
             <td>{{ 'Voided' if w.status=='void' else 'Active' }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="5" class="text-muted text-center py-3">No wagers yet.</td></tr>
+          <tr><td colspan="6" class="text-muted text-center py-3">No wagers yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -56,10 +58,11 @@
     <div class="card shadow-sm">
       <div class="card-header"><strong>Payouts</strong></div>
       <table class="table table-sm mb-0">
-        <thead><tr><th>Placement</th><th>Entries</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
+        <thead><tr><th>Tournament</th><th>Placement</th><th>Entries</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
         <tbody>
           {% for p in history.payouts %}
           <tr>
+            <td class="small">{{ p.placement.player.team.tournament.name }}</td>
             <td>{{ position_label(p.placement.position) }}</td>
             <td>{{ p.winning_entries }}</td>
             <td class="text-end money">{{ p.amount_cents | dollars }}</td>
