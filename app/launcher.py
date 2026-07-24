@@ -43,7 +43,26 @@ def _open_browser_when_ready(host: str, port: int, timeout: float = 15.0) -> Non
     webbrowser.open(url)
 
 
+def _ensure_std_streams() -> None:
+    """Give the process real stdout/stderr when launched without a console.
+
+    A windowed PyInstaller build (double-clicked, no console) has
+    ``sys.stdout`` / ``sys.stderr`` set to None. uvicorn's log formatter calls
+    ``sys.stdout.isatty()``, which then crashes. Point the streams at a log file
+    so logging works and nothing sees a None stream.
+    """
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    settings.ensure_dirs()
+    log = open(settings.log_dir / "console.log", "a", buffering=1, encoding="utf-8", errors="replace")
+    if sys.stdout is None:
+        sys.stdout = log
+    if sys.stderr is None:
+        sys.stderr = log
+
+
 def main() -> int:
+    _ensure_std_streams()
     settings.ensure_dirs()
     host, port = settings.host, settings.port
 
