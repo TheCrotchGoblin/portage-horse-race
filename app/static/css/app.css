@@ -45,6 +45,10 @@ body {
 }
 .btn-outline-brand:hover, .btn-outline-brand:focus { background-color: var(--brand); color: #fff; }
 
+/* Keep tab pills on-brand (green) rather than Bootstrap's default blue. */
+.nav-pills .nav-link { color: var(--brand); }
+.nav-pills .nav-link.active { background-color: var(--brand); color: #fff; }
+
 /* Money should be unmistakable and large. */
 .money { font-variant-numeric: tabular-nums; font-weight: 600; }
 .money-lg { font-size: 1.6rem; }
