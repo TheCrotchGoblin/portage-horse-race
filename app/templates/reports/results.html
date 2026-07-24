@@ -3,7 +3,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">{{ tournament.name }} — Results report</h1>
-  <button class="btn btn-brand no-print" onclick="window.print()">Print</button>
+  <div class="no-print"><a href="/reports" class="btn btn-outline-secondary me-1">← Reports</a>
+    <button class="btn btn-brand" onclick="window.print()">Print</button></div>
 </div>
 
 {% for r in results %}
