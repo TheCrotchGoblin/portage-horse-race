@@ -21,15 +21,17 @@
       <div class="collapse navbar-collapse" id="nav">
         <ul class="navbar-nav me-auto">
           {% set nav = active_nav | default('') %}
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='dashboard' }}" href="/">Dashboard</a></li>
+          {# Ordered to follow the natural workflow: set up, take wagers, watch,
+             look things up, enter results, pay out, report, then admin. #}
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='setup' }}" href="/setup">Setup</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='cashier' }}" href="/cashier">Cashier</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='ledger' }}" href="/ledger">Ledger</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='dashboard' }}" href="/">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='customers' }}" href="/customers">Customers</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='ledger' }}" href="/ledger">Ledger</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='results' }}" href="/results">Results</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='payouts' }}" href="/payouts">Payouts</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='reports' }}" href="/reports">Reports</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='setup' }}" href="/setup">Setup</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='admin' }}" href="/admin">Backup</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='admin' }}" href="/admin">Admin</a></li>
         </ul>
         {% if tournament %}
         <span class="navbar-text text-white">

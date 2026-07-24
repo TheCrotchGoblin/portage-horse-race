@@ -1,6 +1,6 @@
 [project]
 name = "portage-horse-race"
-version = "0.4.1"
+version = "0.4.2"
 description = "Local-first wager management app for the Portage Men's Open horse race"
 requires-python = ">=3.12"
 dependencies = [

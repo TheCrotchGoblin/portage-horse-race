@@ -34,6 +34,24 @@ def test_archive_then_start_new_tournament(client):
         assert len(active) == 1 and active[0].name == "Second Open"
 
 
+def test_reopen_archived_from_welcome(client):
+    """After archiving, the past tournament is reachable to reopen from the welcome
+    screen — you don't have to create a new one first."""
+    make_tournament(client)
+    with database.SessionLocal() as s:
+        tid = s.scalars(select(Tournament)).first().id
+    client.post("/setup/archive")
+
+    home = client.get("/").text
+    assert "Welcome" in home
+    assert "Reopen a past tournament" in home  # archived tournament is offered here
+
+    r = client.post(f"/setup/{tid}/reopen", follow_redirects=True)
+    assert r.status_code == 200
+    with database.SessionLocal() as s:
+        assert s.get(Tournament, tid).status == TournamentStatus.CLOSED  # active again
+
+
 def test_reopen_blocked_while_another_active(client):
     make_tournament(client)
     with database.SessionLocal() as s:

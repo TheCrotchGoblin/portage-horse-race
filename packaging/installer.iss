@@ -3,7 +3,7 @@
 ; Produces dist\installer\PortageHorseRace-Setup-<version>.exe
 
 #define MyAppName "Portage Horse Race"
-#define MyAppVersion "0.4.1"
+#define MyAppVersion "0.4.2"
 #define MyAppPublisher "Portage Men's Open"
 #define MyAppExeName "PortageHorseRace.exe"
 

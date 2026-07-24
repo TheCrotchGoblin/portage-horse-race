@@ -13,6 +13,24 @@
         <a href="/setup/new" class="btn btn-brand btn-lg mt-3 px-5">Set up a tournament</a>
       </div>
     </div>
+
+    {% if archived %}
+    <div class="card shadow-sm mt-3">
+      <div class="card-header"><strong>Reopen a past tournament</strong></div>
+      <ul class="list-group list-group-flush">
+        {% for a in archived %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ a.name }} <span class="text-muted small">{{ a.event_date or '' }}</span></span>
+          <form method="post" action="/setup/{{ a.id }}/reopen" class="d-flex gap-1 m-0">
+            <input class="form-control form-control-sm" style="width:120px" name="admin_pin" placeholder="Admin PIN">
+            <button class="btn btn-sm btn-outline-brand">Reopen</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
     <p class="text-center text-muted mt-3 small">
       All information stays on this computer. Automatic backups keep your records safe.
     </p>
