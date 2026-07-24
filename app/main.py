@@ -35,6 +35,30 @@ def _configure_logging(settings: Settings) -> None:
     )
 
 
+def _integrity_check(settings: Settings) -> None:
+    """Run a fast SQLite integrity check on startup (spec §13). Logs guidance
+    if the database appears damaged, but never blocks launch."""
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(str(settings.db_path))
+        try:
+            result = conn.execute("PRAGMA quick_check").fetchone()
+        finally:
+            conn.close()
+    except sqlite3.Error as exc:  # pragma: no cover - defensive
+        logger.error("Could not open the database for integrity check: %s", exc)
+        return
+    if not result or result[0] != "ok":
+        logger.error(
+            "Database integrity check FAILED (%s). Restore the most recent good backup "
+            "from the Backup screen (backups are in %s).",
+            result[0] if result else "unknown", settings.backup_dir,
+        )
+    else:
+        logger.info("Database integrity check passed")
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or default_settings
     _configure_logging(settings)
@@ -45,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     first_run = not settings.db_path.exists()
     create_all()  # idempotent; safe on every start until Alembic baseline lands
     if not first_run:
+        _integrity_check(settings)
         backups.backup_database(settings.db_path, settings.backup_dir, reason="startup")
         logger.info("Startup backup complete")
     else:
