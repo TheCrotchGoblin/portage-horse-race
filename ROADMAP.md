@@ -3,6 +3,12 @@
 Status of every item in `Portage_Horse_Race_Application_Improvement_Specification.docx`
 against the codebase. Legend: ✅ done · 🆕 added in v0.5.0 · 🔜 planned · ⏸ deferred (rationale).
 
+## Shipped since this doc was written
+- **v0.5.0:** FIN-02 (settlement gate), BKP-02 (backup health), REL-04 (update check), REL-01 (checksums), UX-04 (help page).
+- **v0.6.0:** RPT-02 (settlement package ZIP), RPT-01 (payout signature), SEC-05 (audit filter/export), SET-02 (CSV import), SET-03 (readiness checklist), UX-07 (demo tournament), POS-05 (order references), POS-03 (repeat customer), FIN-04 (settlement lock + audited reopen), RPT-04 (contact tracking), FIN-05 (reconciliation now includes reversed/outstanding), TST-01 (property tests), TST-02 (golden lifecycle). Also fixed a latent auto-settle bug.
+
+Still open (highest value first): BKP-04 removable-drive export, SET-06 branding, POS-04 merge tool, RPT-06 winner notice, BKP-06 retention, BKP-05 pre-settlement integrity, RPT-05 en-CA formatting, SEC-04 retention/anonymize, REL-05 diagnostics, UX-05 accessibility pass. Deferred by design: DSP-\*, NET-\*, UX-06 themes, REL-06 code signing.
+
 ## Financial integrity & settlement
 | ID | Status | Notes |
 |----|--------|-------|
