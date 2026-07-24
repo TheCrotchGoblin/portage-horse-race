@@ -8,6 +8,8 @@ the cent** — no calculator or poster required.
 Everything stays on one computer. It works with the internet disconnected, and it backs
 itself up automatically so a volunteer can't lose the day's records.
 
+![Quickstart — dashboard, cashier and reports](docs/quickstart.gif)
+
 ---
 
 ## For tournament staff — installing & running

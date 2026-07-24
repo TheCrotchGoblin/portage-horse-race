@@ -172,9 +172,11 @@ def delete_team(session: Session, tournament: Tournament, team: Team) -> None:
 
 
 def _ready_to_open(session: Session, tournament: Tournament) -> None:
+    # A tournament runs with one or more teams. Extra teams simply spread the
+    # betting across more players so wagers aren't all piled on a few favourites.
     teams = session.scalars(select(Team).where(Team.tournament_id == tournament.id)).all()
-    if len(teams) < 2:
-        raise SetupError("Add at least two teams before opening wagering.")
+    if not teams:
+        raise SetupError("Add at least one team before opening wagering.")
     for team in teams:
         count = session.scalar(select(func.count(Player.id)).where(Player.team_id == team.id)) or 0
         if count < 1:
