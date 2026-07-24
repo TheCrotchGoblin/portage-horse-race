@@ -1,26 +1,34 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Edit' if customer else 'New' }} customer{% endblock %}
 {% block content %}
+{% set v = values or {} %}
+{% set name_val = v.get('name', customer.name if customer else '') %}
+{% set phone_val = v.get('phone', customer.phone_raw if customer else '') %}
+{% set email_val = v.get('email', customer.email if customer else '') %}
+{% set notes_val = v.get('notes', customer.notes if customer else '') %}
+{% set invalid = invalid_fields or [] %}
 <div class="row justify-content-center"><div class="col-lg-6">
   <h1 class="h4 mb-3">{{ 'Edit customer' if customer else 'New customer' }}</h1>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
   <div class="card shadow-sm"><div class="card-body">
     <form method="post" action="{{ ('/customers/%d/edit' % customer.id) if customer else '/customers/new' }}">
       <div class="mb-3">
         <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
-        <input name="name" class="form-control form-control-lg" required data-autofocus
-               value="{{ customer.name if customer else '' }}">
+        <input name="name" class="form-control form-control-lg {{ 'is-invalid' if 'name' in invalid }}"
+               required data-autofocus value="{{ name_val }}">
+        {% if 'name' in invalid %}<div class="invalid-feedback">{{ error }}</div>{% endif %}
       </div>
       <div class="mb-3">
         <label class="form-label">Phone <span class="text-muted">(optional)</span></label>
-        <input name="phone" class="form-control" value="{{ customer.phone_raw if customer else '' }}">
+        <input name="phone" class="form-control" value="{{ phone_val }}">
       </div>
       <div class="mb-3">
         <label class="form-label">Email <span class="text-muted">(optional)</span></label>
-        <input name="email" class="form-control" value="{{ customer.email if customer else '' }}">
+        <input name="email" class="form-control" value="{{ email_val }}">
       </div>
       <div class="mb-3">
         <label class="form-label">Notes</label>
-        <textarea name="notes" class="form-control" rows="2">{{ customer.notes if customer else '' }}</textarea>
+        <textarea name="notes" class="form-control" rows="2">{{ notes_val }}</textarea>
       </div>
       <button class="btn btn-brand">Save</button>
       <a href="{{ ('/customers/%d' % customer.id) if customer else '/customers' }}" class="btn btn-link">Cancel</a>

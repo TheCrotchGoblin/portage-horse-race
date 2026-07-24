@@ -115,29 +115,32 @@
     </div>
     {% endif %}
 
-    <div class="card shadow-sm">
+    {% set cfg = config_values or {} %}
+    {% set cinv = config_invalid or [] %}
+    <div class="card shadow-sm {{ 'border-danger' if config_error }}">
       <div class="card-header"><strong>Financial settings</strong></div>
       <div class="card-body">
         {% if locked %}
           <div class="alert alert-info py-2 small">Sales have started, so these are locked.</div>
         {% endif %}
+        {% if config_error %}<div class="alert alert-danger py-2 small">{{ config_error }}</div>{% endif %}
         <form method="post" action="/setup/config">
           <div class="mb-2"><label class="form-label small">Name</label>
-            <input name="name" class="form-control form-control-sm" value="{{ tournament.name }}" {{ 'disabled' if locked }}></div>
+            <input name="name" class="form-control form-control-sm {{ 'is-invalid' if 'name' in cinv }}" value="{{ cfg.get('name', tournament.name) }}" {{ 'disabled' if locked }}></div>
           <div class="mb-2"><label class="form-label small">Event date</label>
-            <input type="date" name="event_date" class="form-control form-control-sm" value="{{ tournament.event_date or '' }}" {{ 'disabled' if locked }}></div>
+            <input type="date" name="event_date" class="form-control form-control-sm" value="{{ cfg.get('event_date', tournament.event_date or '') }}" {{ 'disabled' if locked }}></div>
           <div class="mb-2"><label class="form-label small">Price per entry</label>
             <div class="input-group input-group-sm"><span class="input-group-text">$</span>
-              <input name="entry_price" class="form-control" value="{{ '%.2f' % (tournament.entry_price_cents/100) }}" {{ 'disabled' if locked }}></div></div>
+              <input name="entry_price" class="form-control {{ 'is-invalid' if 'price' in cinv }}" value="{{ cfg.get('entry_price', '%.2f' % (tournament.entry_price_cents/100)) }}" {{ 'disabled' if locked }}></div></div>
           <div class="mb-2"><label class="form-label small">Club keeps %</label>
-            <input name="club_percent" class="form-control form-control-sm" value="{{ tournament.club_bps/100 }}" {{ 'disabled' if locked }}></div>
+            <input name="club_percent" class="form-control form-control-sm {{ 'is-invalid' if 'club' in cinv }}" value="{{ cfg.get('club_percent', tournament.club_bps/100) }}" {{ 'disabled' if locked }}></div>
           <div class="row g-1">
             <div class="col"><label class="form-label small">1st%</label>
-              <input name="first_percent" class="form-control form-control-sm" value="{{ tournament.first_bps/100 }}" {{ 'disabled' if locked }}></div>
+              <input name="first_percent" class="form-control form-control-sm {{ 'is-invalid' if 'split' in cinv }}" value="{{ cfg.get('first_percent', tournament.first_bps/100) }}" {{ 'disabled' if locked }}></div>
             <div class="col"><label class="form-label small">2nd%</label>
-              <input name="second_percent" class="form-control form-control-sm" value="{{ tournament.second_bps/100 }}" {{ 'disabled' if locked }}></div>
+              <input name="second_percent" class="form-control form-control-sm {{ 'is-invalid' if 'split' in cinv }}" value="{{ cfg.get('second_percent', tournament.second_bps/100) }}" {{ 'disabled' if locked }}></div>
             <div class="col"><label class="form-label small">3rd%</label>
-              <input name="third_percent" class="form-control form-control-sm" value="{{ tournament.third_bps/100 }}" {{ 'disabled' if locked }}></div>
+              <input name="third_percent" class="form-control form-control-sm {{ 'is-invalid' if 'split' in cinv }}" value="{{ cfg.get('third_percent', tournament.third_bps/100) }}" {{ 'disabled' if locked }}></div>
           </div>
           {% if not locked %}
           <button class="btn btn-outline-brand btn-sm mt-3 w-100">Save settings</button>

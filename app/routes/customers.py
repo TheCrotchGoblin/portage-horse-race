@@ -52,8 +52,10 @@ def create(
             session, name=name, phone=phone, email=email, notes=notes, operator=operator_name(request)
         )
     except CustomerError as exc:
-        flash(request, str(exc), "danger")
-        return RedirectResponse("/customers/new", status_code=303)
+        ctx = base_context(request, session, "customers")
+        ctx.update({"error": str(exc), "invalid_fields": ["name"], "return_to": return_to,
+                    "values": {"name": name, "phone": phone, "email": email, "notes": notes}})
+        return render(request, "customers/form.html", ctx, status_code=400)
     flash(request, f"Customer '{customer.name}' saved.")
     if return_to == "cashier":
         return RedirectResponse(f"/cashier?customer_id={customer.id}", status_code=303)
@@ -103,7 +105,9 @@ def edit(
             operator=operator_name(request),
         )
     except CustomerError as exc:
-        flash(request, str(exc), "danger")
-        return RedirectResponse(f"/customers/{customer_id}/edit", status_code=303)
+        ctx = base_context(request, session, "customers")
+        ctx.update({"customer": customer, "error": str(exc), "invalid_fields": ["name"],
+                    "values": {"name": name, "phone": phone, "email": email, "notes": notes}})
+        return render(request, "customers/form.html", ctx, status_code=400)
     flash(request, "Customer updated.")
     return RedirectResponse(f"/customers/{customer_id}", status_code=303)

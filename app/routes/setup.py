@@ -22,11 +22,22 @@ def _redirect(url: str = "/setup") -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
 
 
-@router.get("")
-def overview(request: Request, session: Session = Depends(get_session)):
-    tournament = get_active_tournament(session)
-    if tournament is None:
-        return _redirect("/setup/new")
+def _invalid_fields(msg: str) -> list[str]:
+    """Map a validation message to the form field(s) to highlight."""
+    m = msg.lower()
+    fields = []
+    if "name" in m:
+        fields.append("name")
+    if "price" in m:
+        fields.append("price")
+    if "club" in m:
+        fields.append("club")
+    if "split" in m or "100%" in m or "percentage" in m:
+        fields.append("split")
+    return fields
+
+
+def _overview_context(request: Request, session: Session, tournament: Tournament) -> dict:
     ctx = base_context(request, session, "setup")
     ctx["teams"] = session.scalars(
         select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
@@ -36,7 +47,15 @@ def overview(request: Request, session: Session = Depends(get_session)):
         select(Tournament).where(Tournament.status == TournamentStatus.ARCHIVED)
         .order_by(Tournament.created_at.desc())
     ).all()
-    return render(request, "setup/overview.html", ctx)
+    return ctx
+
+
+@router.get("")
+def overview(request: Request, session: Session = Depends(get_session)):
+    tournament = get_active_tournament(session)
+    if tournament is None:
+        return _redirect("/setup/new")
+    return render(request, "setup/overview.html", _overview_context(request, session, tournament))
 
 
 @router.get("/new")
@@ -70,8 +89,17 @@ def create(
             operator=operator_name(request),
         )
     except (SetupError, ValueError) as exc:
-        flash(request, str(exc), "danger")
-        return _redirect("/setup/new")
+        ctx = base_context(request, session, "setup")
+        ctx.update({
+            "error": str(exc),
+            "invalid_fields": _invalid_fields(str(exc)),
+            "values": {
+                "name": name, "event_date": event_date, "entry_price": entry_price,
+                "club_percent": club_percent, "first_percent": first_percent,
+                "second_percent": second_percent, "third_percent": third_percent,
+            },
+        })
+        return render(request, "setup/new.html", ctx, status_code=400)
     flash(request, f"Tournament '{tournament.name}' created. Now add your teams and players.")
     return _redirect("/setup")
 
@@ -103,8 +131,17 @@ def update_config(
             operator=operator_name(request),
         )
     except (SetupError, ValueError) as exc:
-        flash(request, str(exc), "danger")
-        return _redirect("/setup")
+        ctx = _overview_context(request, session, tournament)
+        ctx.update({
+            "config_error": str(exc),
+            "config_invalid": _invalid_fields(str(exc)),
+            "config_values": {
+                "name": name, "event_date": event_date, "entry_price": entry_price,
+                "club_percent": club_percent, "first_percent": first_percent,
+                "second_percent": second_percent, "third_percent": third_percent,
+            },
+        })
+        return render(request, "setup/overview.html", ctx, status_code=400)
     flash(request, "Settings saved.")
     return _redirect("/setup")
 
