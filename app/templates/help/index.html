@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Help — quick-start{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Operator quick-start</h1>
+  <button class="btn btn-brand no-print" onclick="window.print()">Print this page</button>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card shadow-sm"><div class="card-body">
+
+      <h2 class="h5 text-brand">1. Set up the tournament</h2>
+      <ol>
+        <li><strong>Setup</strong> → name it (the default is fine), keep $5 / 15% / 60-30-10 unless told otherwise.</li>
+        <li>Add your <strong>teams</strong> and, under each, its <strong>players</strong> (one per line, or paste a list). You can add more any time.</li>
+        <li>When ready to take cash, press <strong>Open wagering</strong>.</li>
+      </ol>
+
+      <h2 class="h5 text-brand">2. Take wagers (Cashier)</h2>
+      <ol>
+        <li>Find the customer (search) or add a new one (name only is fine).</li>
+        <li>Search a <strong>player</strong>, set how many entries, press <strong>Add</strong>. Repeat for as many players as they want — it all goes on <strong>one order</strong>.</li>
+        <li>Take the cash (change is shown), press <strong>Record payment</strong>. The screen resets for the next customer.</li>
+      </ol>
+
+      <h2 class="h5 text-brand">3. Fix a mistake</h2>
+      <p>On the <strong>Cashier</strong> (recent activity) or <strong>Ledger</strong> screen, press <strong>Void</strong> and give a reason.
+        Nothing is ever deleted — voids are logged and totals correct themselves.</p>
+
+      <h2 class="h5 text-brand">4. After the race</h2>
+      <ol>
+        <li><strong>Setup</strong> → <strong>Close wagering</strong> (no more bets).</li>
+        <li><strong>Results</strong> → pick 1st/2nd/3rd for each team, check the preview, press <strong>Generate payouts</strong>.
+          (It won't let you until wagering is closed and all three places are chosen.)</li>
+        <li><strong>Payouts</strong> → work down the list, press <strong>Mark paid</strong> for each. A person can't be paid twice.
+          If a placed player had no bets, record what happens to that <em>unclaimed pool</em>.</li>
+      </ol>
+
+      <h2 class="h5 text-brand">5. Records &amp; safety</h2>
+      <ul>
+        <li><strong>Reports</strong> → printable summaries and CSV exports (final reconciliation should balance to $0.00).</li>
+        <li><strong>Admin</strong> → <strong>Back up</strong> any time; restore a backup if needed. Check the <em>last backup</em> time on the Dashboard.</li>
+      </ul>
+    </div></div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm bg-light"><div class="card-body">
+      <h2 class="h6">Good to know</h2>
+      <ul class="small mb-0">
+        <li>The app works with <strong>no internet</strong>.</li>
+        <li>Your data stays on this computer and is kept when you update.</li>
+        <li>Clicking <strong>Portage Horse Race</strong> (top-left) always returns home.</li>
+        <li>An <strong>Admin PIN</strong> (Admin screen) can protect voids, results and restore. If you forget it, use the <strong>recovery code</strong> shown when you set it.</li>
+        <li>Grey menu items need an open tournament first.</li>
+      </ul>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

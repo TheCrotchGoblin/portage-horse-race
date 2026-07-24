@@ -26,3 +26,7 @@ dist/
 # OS
 Thumbs.db
 Desktop.ini
+
+# Support screenshots dropped in for diagnosis
+Screenshot_*.jpg
+Screenshot_*.png

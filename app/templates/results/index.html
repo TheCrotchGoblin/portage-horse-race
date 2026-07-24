@@ -71,11 +71,16 @@
           </tbody>
         </table>
         {% if not has_payouts %}
+        {% if blockers %}
+        <div class="alert alert-warning py-2">
+          <div class="fw-semibold mb-1">Before you can generate payouts:</div>
+          <ul class="mb-0 small">{% for b in blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
         <form method="post" action="/results/{{ team.id }}/generate"
               data-confirm="Generate payouts for {{ team.name }}? Double-check the results above.">
           <input class="form-control form-control-sm mb-2" name="admin_pin" placeholder="Admin PIN (if set)">
-          <button class="btn btn-success w-100"
-                  {{ 'disabled' if not (previews[0].player and previews[1].player and previews[2].player) }}>
+          <button class="btn btn-success w-100" {{ 'disabled' if blockers }}>
             Generate payouts for {{ team.name }}
           </button>
         </form>

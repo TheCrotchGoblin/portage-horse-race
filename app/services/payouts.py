@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Payout, Placement, Player, Team, Tournament, Wager
-from app.models.enums import PayoutStatus, Position, TournamentStatus, WagerStatus
+from app.models.enums import PayoutStatus, Position, TournamentStatus, WageringStatus, WagerStatus
 from app.models.entities import utcnow
 from app.services import audit
 from app.services import teams as team_service
@@ -156,12 +156,27 @@ def placement_previews(session: Session, tournament: Tournament, team: Team) -> 
     return previews
 
 
-def generate_payouts(session: Session, tournament: Tournament, team: Team, *, operator: str) -> dict:
+def settlement_blockers(session: Session, tournament: Tournament, team: Team) -> list[str]:
+    """Human-readable reasons this team is not ready for payout generation (FIN-02).
+    Empty list means it is ready."""
+    reasons: list[str] = []
+    if team.wagering_status != WageringStatus.CLOSED:
+        reasons.append(f"Close wagering for {team.name} first (no more bets can be taken).")
     placements = session.scalars(select(Placement).where(Placement.team_id == team.id)).all()
     if len(placements) < 3:
-        raise PayoutError("Enter 1st, 2nd and 3rd place before generating payouts.")
+        reasons.append("Enter 1st, 2nd and 3rd place.")
+    if tournament.first_bps + tournament.second_bps + tournament.third_bps != 10000:
+        reasons.append("The 1st/2nd/3rd payout split must total 100%.")
     if has_payouts(session, team.id):
-        raise PayoutError("Payouts have already been generated for this team.")
+        reasons.append("Payouts have already been generated for this team.")
+    return reasons
+
+
+def generate_payouts(session: Session, tournament: Tournament, team: Team, *, operator: str) -> dict:
+    blockers = settlement_blockers(session, tournament, team)
+    if blockers:
+        raise PayoutError(" ".join(blockers))
+    placements = session.scalars(select(Placement).where(Placement.team_id == team.id)).all()
 
     unclaimed_total = 0
     unclaimed_positions: list[int] = []

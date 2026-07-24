@@ -47,6 +47,7 @@ def results(request: Request, session: Session = Depends(get_session), team_id: 
         "placements": placements,
         "previews": payout_service.placement_previews(session, tournament, team),
         "has_payouts": payout_service.has_payouts(session, team.id),
+        "blockers": payout_service.settlement_blockers(session, tournament, team),
     })
     return render(request, "results/index.html", ctx)
 

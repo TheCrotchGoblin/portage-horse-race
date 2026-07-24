@@ -39,6 +39,13 @@ def test_home_without_tournament_offers_setup(client):
     assert "Set up a tournament" in client.get("/").text
 
 
+def test_help_page_available(client):
+    r = client.get("/help")
+    assert r.status_code == 200
+    assert "Operator quick-start" in r.text
+    assert 'href="/help"' in client.get("/").text  # linked in the nav
+
+
 def test_new_customer_returns_to_list(client):
     r = client.post("/customers/new", data={"name": "Jo Lister"}, follow_redirects=False)
     assert r.status_code == 303

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from app import database
+from app import __version__, database
 from app.database import get_session
 from app.routes.deps import (
     admin_pin_ok,
@@ -22,9 +22,10 @@ from app.templating import flash, render
 
 router = APIRouter(prefix="/admin")
 
+REPO = "TheCrotchGoblin/portage-horse-race"
 
-@router.get("")
-def admin(request: Request, session: Session = Depends(get_session)):
+
+def _admin_context(request: Request, session: Session) -> dict:
     ctx = base_context(request, session, "admin")
     settings = request.app.state.settings
     backups = backup_service.list_backups(settings.backup_dir)
@@ -34,12 +35,51 @@ def admin(request: Request, session: Session = Depends(get_session)):
         "has_pin": has_admin_pin(session),
         "backup_dir": str(settings.backup_dir),
         "data_dir": str(settings.data_dir),
+        "last_backup": backup_service.backup_health(settings.backup_dir)["last_at"],
+        "app_version": __version__,
     })
+    return ctx
+
+
+def _version_tuple(v: str) -> tuple:
+    parts = []
+    for chunk in v.lstrip("vV").split("."):
+        num = "".join(ch for ch in chunk if ch.isdigit())
+        parts.append(int(num) if num else 0)
+    return tuple(parts)
+
+
+@router.get("")
+def admin(request: Request, session: Session = Depends(get_session)):
+    return render(request, "admin/index.html", _admin_context(request, session))
+
+
+@router.get("/check-updates")
+def check_updates(request: Request, session: Session = Depends(get_session)):
+    """Optional, on-demand update check (spec REL-04). Offline-safe."""
+    import httpx
+
+    ctx = _admin_context(request, session)
+    try:
+        resp = httpx.get(
+            f"https://api.github.com/repos/{REPO}/releases/latest",
+            headers={"Accept": "application/vnd.github+json"}, timeout=6,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        latest = data.get("tag_name", "").lstrip("vV")
+        url = data.get("html_url") or f"https://github.com/{REPO}/releases/latest"
+        if latest and _version_tuple(latest) > _version_tuple(__version__):
+            ctx["update"] = {"status": "newer", "latest": latest, "url": url}
+        else:
+            ctx["update"] = {"status": "current", "latest": latest or __version__}
+    except Exception:
+        ctx["update"] = {"status": "error"}
     return render(request, "admin/index.html", ctx)
 
 
 @router.post("/backup")
-def create_backup(request: Request, session: Session = Depends(get_session)):
+def create_backup(request: Request, session: Session = Depends(get_session), return_to: str = Form("/admin")):
     settings = request.app.state.settings
     path = backup_service.backup_database(settings.db_path, settings.backup_dir, reason="manual")
     if path is None:
@@ -48,7 +88,7 @@ def create_backup(request: Request, session: Session = Depends(get_session)):
         audit.record(session, action_type="backup_created", actor=operator_name(request),
                      entity_type="backup", entity_id=path.name)
         flash(request, f"Backup created: {path.name}")
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse(return_to if return_to.startswith("/") else "/admin", status_code=303)
 
 
 @router.post("/restore")

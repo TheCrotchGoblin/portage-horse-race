@@ -47,6 +47,7 @@ def test_other_team_not_flagged_unclaimed_before_generation(client):
                 data={"first_player_id": pa[0], "second_player_id": pa[1], "third_player_id": pa[2]})
     client.post(f"/results/{tb_id}/placements",
                 data={"first_player_id": pb[0], "second_player_id": pb[1], "third_player_id": pb[2]})
+    client.post("/setup/close")  # wagering must be closed before generating (FIN-02)
     client.post(f"/results/{ta_id}/generate")
 
     # Team B is pending payout generation — NOT unclaimed.
@@ -55,6 +56,20 @@ def test_other_team_not_flagged_unclaimed_before_generation(client):
     with database.SessionLocal() as s:
         tid = s.scalars(select(Tournament)).first().id
         assert unclaimed_placements(s, tid) == []
+
+
+def test_generate_blocked_while_wagering_open(client):
+    """FIN-02: payouts cannot be generated until wagering is closed."""
+    make_tournament(client)  # wagering is OPEN
+    team_id, (alice, bob, carol) = _setup_players(client)
+    c1 = _customer(client, "X")
+    _wager(client, c1, team_id, alice, 1)
+    client.post(f"/results/{team_id}/placements",
+                data={"first_player_id": alice, "second_player_id": bob, "third_player_id": carol})
+    r = client.post(f"/results/{team_id}/generate", follow_redirects=True)
+    assert "Close wagering" in r.text
+    with database.SessionLocal() as s:
+        assert s.scalars(select(Payout)).first() is None  # nothing generated
 
 
 def test_worked_example_settlement_reconciles(client):
@@ -78,6 +93,7 @@ def test_worked_example_settlement_reconciles(client):
     }, follow_redirects=False)
     assert r.status_code == 303
 
+    client.post("/setup/close")  # wagering must be closed before generating (FIN-02)
     r = client.post(f"/results/{team_id}/generate", follow_redirects=False)
     assert r.status_code == 303
 
@@ -109,6 +125,7 @@ def test_pay_once_blocks_duplicate(client):
     _wager(client, c1, team_id, carol, 1)
     client.post(f"/results/{team_id}/placements", data={
         "first_player_id": alice, "second_player_id": bob, "third_player_id": carol})
+    client.post("/setup/close")  # wagering must be closed before generating (FIN-02)
     client.post(f"/results/{team_id}/generate")
 
     with database.SessionLocal() as s:
@@ -134,6 +151,7 @@ def test_unclaimed_pool_when_placed_player_has_no_wagers(client):
 
     client.post(f"/results/{team_id}/placements", data={
         "first_player_id": alice, "second_player_id": bob, "third_player_id": carol})
+    client.post("/setup/close")  # wagering must be closed before generating (FIN-02)
     r = client.post(f"/results/{team_id}/generate", follow_redirects=True)
     assert "UNCLAIMED" in r.text
 

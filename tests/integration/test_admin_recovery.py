@@ -38,6 +38,30 @@ def test_wrong_recovery_code_rejected(client):
         assert has_admin_pin(s)  # still protected
 
 
+def test_admin_shows_version_and_update_check(client):
+    from app import __version__
+
+    r = client.get("/admin")
+    assert f"Version {__version__}" in r.text
+    assert "Check for updates" in r.text
+
+
+def test_version_comparison():
+    from app.routes.admin import _version_tuple
+
+    assert _version_tuple("v0.5.0") > _version_tuple("0.4.9")
+    assert _version_tuple("0.4.10") > _version_tuple("0.4.9")  # numeric, not string, compare
+    assert not (_version_tuple("0.4.7") > _version_tuple("0.4.7"))
+
+
+def test_dashboard_shows_backup_health(client):
+    from tests.conftest import make_tournament
+
+    make_tournament(client)
+    r = client.get("/dashboard")
+    assert "Back up now" in r.text  # backup-health line with action is present
+
+
 def test_reset_pin_file_clears_pin(client, settings):
     _set_pin(client)
     (settings.data_dir / "reset-pin.txt").write_text("", encoding="utf-8")

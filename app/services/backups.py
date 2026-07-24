@@ -49,6 +49,22 @@ def list_backups(backup_dir: Path) -> list[Path]:
     return sorted(backup_dir.glob("horse_race_*.sqlite3"), reverse=True)
 
 
+def backup_health(backup_dir: Path) -> dict:
+    """Summary of backup state for the dashboard/admin (spec BKP-02)."""
+    from datetime import datetime
+
+    backups = list_backups(backup_dir)
+    if not backups:
+        return {"last_at": None, "count": 0, "dir": str(backup_dir), "name": None}
+    newest = backups[0]
+    return {
+        "last_at": datetime.fromtimestamp(newest.stat().st_mtime),
+        "count": len(backups),
+        "dir": str(backup_dir),
+        "name": newest.name,
+    }
+
+
 def validate_backup(path: Path) -> bool:
     """Confirm a file is a readable SQLite DB with the expected core table."""
     try:

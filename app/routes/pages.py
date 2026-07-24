@@ -33,6 +33,11 @@ def home(request: Request, session: Session = Depends(get_session)):
     return render(request, "welcome.html", ctx)
 
 
+@router.get("/help")
+def help_page(request: Request, session: Session = Depends(get_session)):
+    return render(request, "help/index.html", base_context(request, session, "help"))
+
+
 @router.get("/dashboard")
 def dashboard(request: Request, session: Session = Depends(get_session)):
     tournament = get_active_tournament(session)
@@ -40,7 +45,25 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
         return RedirectResponse("/", status_code=303)
     ctx = base_context(request, session, "dashboard")
     ctx["board"] = dashboard_service.build_dashboard(session, tournament)
+    ctx["backup_health"] = _backup_health(request)
     return render(request, "dashboard.html", ctx)
+
+
+def _backup_health(request: Request) -> dict:
+    from datetime import datetime
+
+    from app.services import backups
+
+    settings = request.app.state.settings
+    health = backups.backup_health(settings.backup_dir)
+    if health["last_at"] is None:
+        health["stale"] = True
+        health["age"] = None
+    else:
+        seconds = (datetime.now() - health["last_at"]).total_seconds()
+        health["stale"] = seconds > 7200  # older than 2 hours
+        health["age"] = health["last_at"]
+    return health
 
 
 @router.post("/teams/{team_id}/cash-count")
