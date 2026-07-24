@@ -63,6 +63,36 @@ def test_can_add_team_after_wagering_opened(client):
     assert "no-store" in client.get("/cashier").headers.get("cache-control", "")
 
 
+def test_duplicate_team_name_rejected(client):
+    client.post("/setup/new", data={
+        "name": "Dup Teams", "entry_price": "5.00", "club_percent": "15",
+        "first_percent": "60", "second_percent": "30", "third_percent": "10"})
+    client.post("/setup/teams", data={"team_name": "Front Nine"})
+    r = client.post("/setup/teams", data={"team_name": "front nine"}, follow_redirects=True)  # case-insensitive
+    assert "already a team called" in r.text
+    with database.SessionLocal() as s:
+        assert len(s.scalars(select(Team)).all()) == 1
+
+
+def test_duplicate_player_names_skipped(client):
+    from app.models import Player
+    client.post("/setup/new", data={
+        "name": "Dup Players", "entry_price": "5.00", "club_percent": "15",
+        "first_percent": "60", "second_percent": "30", "third_percent": "10"})
+    client.post("/setup/teams", data={"team_name": "A"})
+    with database.SessionLocal() as s:
+        tid = s.scalars(select(Team)).first().id
+    # 'al' repeats 'Al' (case-insensitive) and the batch has 'Bob' twice.
+    client.post(f"/setup/teams/{tid}/players", data={"players": "Al\nBob\nal\nBob\nCarol"})
+    with database.SessionLocal() as s:
+        names = sorted(p.name for p in s.scalars(select(Player).where(Player.team_id == tid)).all())
+        assert names == ["Al", "Bob", "Carol"]
+    # Adding an existing name again is skipped, not duplicated.
+    client.post(f"/setup/teams/{tid}/players", data={"players": "Carol"})
+    with database.SessionLocal() as s:
+        assert len(s.scalars(select(Player).where(Player.team_id == tid)).all()) == 3
+
+
 def test_single_team_can_open(client):
     """A tournament may run with just one team (per the tournament organiser)."""
     client.post("/setup/new", data={

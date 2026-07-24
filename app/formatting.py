@@ -40,6 +40,25 @@ def dollars_to_cents(value: str | float | int | None) -> int:
     return -cents if neg else cents
 
 
+def int_or_none(value: str | int | None) -> int | None:
+    """Parse an optional numeric query param; empty/blank strings become None.
+
+    Query params bound to HTML forms arrive as strings, and 'All' options submit
+    an empty string — which FastAPI cannot coerce to int. Accept them as strings
+    and convert here instead.
+    """
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if value.strip() == "":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
 def bps_to_percent(bps: int | None) -> str:
     if bps is None:
         bps = 0

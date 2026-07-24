@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_session
+from app.formatting import int_or_none
 from app.models import Placement, Player, Team
 from app.routes.deps import admin_pin_ok, base_context, operator_name
 from app.services import payouts as payout_service
@@ -21,7 +22,7 @@ def _teams(session, tournament_id):
 
 
 @router.get("")
-def results(request: Request, session: Session = Depends(get_session), team_id: int | None = None):
+def results(request: Request, session: Session = Depends(get_session), team_id: str | None = None):
     ctx = base_context(request, session, "results")
     tournament = ctx["tournament"]
     if tournament is None:
@@ -30,7 +31,8 @@ def results(request: Request, session: Session = Depends(get_session), team_id: 
     if not teams:
         flash(request, "Add teams and players first.", "warning")
         return RedirectResponse("/setup", status_code=303)
-    team = session.get(Team, team_id) if team_id else teams[0]
+    team_id_i = int_or_none(team_id)
+    team = session.get(Team, team_id_i) if team_id_i else teams[0]
     if team is None or team.tournament_id != tournament.id:
         team = teams[0]
 
@@ -54,9 +56,9 @@ def set_placements(
     request: Request,
     team_id: int,
     session: Session = Depends(get_session),
-    first_player_id: int = Form(...),
-    second_player_id: int = Form(...),
-    third_player_id: int = Form(...),
+    first_player_id: str = Form(""),
+    second_player_id: str = Form(""),
+    third_player_id: str = Form(""),
     admin_pin: str = Form(""),
 ):
     ctx = base_context(request, session, "results")
@@ -68,11 +70,15 @@ def set_placements(
     if not admin_pin_ok(session, admin_pin):
         flash(request, "Incorrect administrator PIN.", "danger")
         return RedirectResponse(f"/results?team_id={team_id}", status_code=303)
+    first_i, second_i, third_i = int_or_none(first_player_id), int_or_none(second_player_id), int_or_none(third_player_id)
+    if not (first_i and second_i and third_i):
+        flash(request, "Please choose a player for 1st, 2nd and 3rd place.", "danger")
+        return RedirectResponse(f"/results?team_id={team_id}", status_code=303)
     try:
         payout_service.set_placements(
             session, tournament, team,
-            first_player_id=first_player_id, second_player_id=second_player_id,
-            third_player_id=third_player_id, operator=operator_name(request), finalize=True,
+            first_player_id=first_i, second_player_id=second_i,
+            third_player_id=third_i, operator=operator_name(request), finalize=True,
         )
     except PayoutError as exc:
         flash(request, str(exc), "danger")

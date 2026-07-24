@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.formatting import dollars_to_cents
+from app.formatting import dollars_to_cents, int_or_none
 from app.models import Customer, Player, Team
 from app.models.enums import TournamentStatus, WageringStatus
 from app.routes.deps import admin_pin_ok, base_context, operator_name
@@ -29,29 +29,33 @@ def _players_in_order(session: Session, team_id: int) -> list[team_service.Playe
 def cashier(
     request: Request,
     session: Session = Depends(get_session),
-    customer_id: int | None = None,
-    team_id: int | None = None,
-    player_id: int | None = None,
-    qty: int = 1,
+    customer_id: str | None = None,
+    team_id: str | None = None,
+    player_id: str | None = None,
+    qty: str | None = None,
 ):
     ctx = base_context(request, session, "cashier")
     tournament = ctx["tournament"]
     if tournament is None:
         return RedirectResponse("/setup/new", status_code=303)
 
+    customer_id_i = int_or_none(customer_id)
+    team_id_i = int_or_none(team_id)
+    player_id_i = int_or_none(player_id)
+
     teams = session.scalars(
         select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
     ).all()
 
-    selected_customer = session.get(Customer, customer_id) if customer_id else None
-    selected_team = session.get(Team, team_id) if team_id else None
+    selected_customer = session.get(Customer, customer_id_i) if customer_id_i else None
+    selected_team = session.get(Team, team_id_i) if team_id_i else None
     if selected_team and selected_team.tournament_id != tournament.id:
         selected_team = None
-    selected_player = session.get(Player, player_id) if player_id else None
+    selected_player = session.get(Player, player_id_i) if player_id_i else None
     if selected_player and selected_team and selected_player.team_id != selected_team.id:
         selected_player = None
 
-    qty = max(1, min(qty, wager_service.MAX_QUANTITY))
+    qty = max(1, min(int_or_none(qty) or 1, wager_service.MAX_QUANTITY))
     amount_due = qty * tournament.entry_price_cents
 
     ctx.update(
@@ -85,14 +89,21 @@ def cashier_search(request: Request, session: Session = Depends(get_session), q:
 def record_wager(
     request: Request,
     session: Session = Depends(get_session),
-    customer_id: int = Form(...),
-    team_id: int = Form(...),
-    player_id: int = Form(...),
-    quantity: int = Form(...),
+    customer_id: str = Form(""),
+    team_id: str = Form(""),
+    player_id: str = Form(""),
+    quantity: str = Form(""),
     received: str = Form(""),
 ):
     ctx = base_context(request, session, "cashier")
     tournament = ctx["tournament"]
+    customer_id = int_or_none(customer_id)
+    team_id = int_or_none(team_id)
+    player_id = int_or_none(player_id)
+    quantity = int_or_none(quantity)
+    if not (customer_id and team_id and player_id and quantity):
+        flash(request, "Please choose a customer, team, player and quantity before recording.", "danger")
+        return RedirectResponse("/cashier", status_code=303)
     received_cents = None
     if received.strip():
         try:

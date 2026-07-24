@@ -138,25 +138,45 @@ def add_team(session: Session, tournament: Tournament, name: str) -> Team:
     name = (name or "").strip()
     if not name:
         raise SetupError("Please enter a team name.")
+    exists = session.scalar(
+        select(func.count(Team.id)).where(
+            Team.tournament_id == tournament.id, func.lower(Team.name) == name.lower()
+        )
+    )
+    if exists:
+        raise SetupError(f"There is already a team called '{name}'. Please use a different name.")
     team = Team(tournament_id=tournament.id, name=name, wagering_status=WageringStatus.CLOSED)
     session.add(team)
     session.flush()
     return team
 
 
-def add_players(session: Session, team: Team, names: list[str]) -> list[Player]:
+def add_players(session: Session, team: Team, names: list[str]) -> tuple[list[Player], list[str]]:
+    """Add players to a team, skipping names that already exist on it (or repeat
+    within this batch). Returns (created, skipped_duplicate_names)."""
     start = session.scalar(
         select(func.coalesce(func.max(Player.display_order), 0)).where(Player.team_id == team.id)
     ) or 0
+    existing = {
+        p.name.lower()
+        for p in session.scalars(select(Player).where(Player.team_id == team.id)).all()
+    }
     created: list[Player] = []
-    for offset, raw in enumerate((n.strip() for n in names), start=1):
+    skipped: list[str] = []
+    offset = 0
+    for raw in (n.strip() for n in names):
         if not raw:
             continue
+        if raw.lower() in existing:
+            skipped.append(raw)
+            continue
+        existing.add(raw.lower())
+        offset += 1
         player = Player(team_id=team.id, name=raw, display_order=start + offset, active=True)
         session.add(player)
         created.append(player)
     session.flush()
-    return created
+    return created, skipped
 
 
 def delete_player(session: Session, tournament: Tournament, player: Player) -> None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Customer, Payout, Placement, Player, Team, Wager
@@ -92,14 +92,26 @@ def update_customer(
 
 
 def find_duplicates(
-    session: Session, *, phone: str | None, email: str | None, exclude_id: int | None = None
+    session: Session,
+    *,
+    name: str | None = None,
+    phone: str | None = None,
+    email: str | None = None,
+    exclude_id: int | None = None,
 ) -> list[Customer]:
-    """Customers sharing the same normalized phone or email (spec FR-022)."""
+    """Customers sharing the same name, normalized phone or email (spec FR-022).
+
+    Name matches are included so an identical name surfaces the existing-customer
+    chooser — the cashier can pick the existing person or create a new one anyway.
+    """
     phone_norm = normalize_phone(phone)
     email_norm = normalize_email(email)
-    if not phone_norm and not email_norm:
+    name_clean = (name or "").strip()
+    if not phone_norm and not email_norm and not name_clean:
         return []
     conditions = []
+    if name_clean:
+        conditions.append(func.lower(Customer.name) == name_clean.lower())
     if phone_norm:
         conditions.append(Customer.phone_normalized == phone_norm)
     if email_norm:

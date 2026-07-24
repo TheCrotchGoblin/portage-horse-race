@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_session
+from app.formatting import int_or_none
 from app.models.enums import WagerStatus
 from app.routes.deps import base_context
 from app.services import ledger as ledger_service
@@ -19,9 +20,9 @@ router = APIRouter()
 def ledger(
     request: Request,
     session: Session = Depends(get_session),
-    team_id: int | None = None,
-    player_id: int | None = None,
-    customer_id: int | None = None,
+    team_id: str | None = None,
+    player_id: str | None = None,
+    customer_id: str | None = None,
     customer_name: str | None = None,
     operator: str | None = None,
     status: str | None = None,
@@ -34,7 +35,8 @@ def ledger(
         return RedirectResponse("/setup/new", status_code=303)
 
     filters = LedgerFilters(
-        team_id=team_id, player_id=player_id, customer_id=customer_id,
+        team_id=int_or_none(team_id), player_id=int_or_none(player_id),
+        customer_id=int_or_none(customer_id),
         customer_name=customer_name or None,
         operator=operator or None, status=status or None,
         date_from=date_from or None, date_to=date_to or None,

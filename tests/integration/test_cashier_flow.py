@@ -95,3 +95,17 @@ def test_duplicate_customer_warning(client):
     assert "might already be a customer" in r.text
     with new_session() as s:
         assert len(s.scalars(select(Customer)).all()) == 1
+
+
+def test_duplicate_customer_name_warns(client):
+    make_tournament(client)
+    client.post("/customers/new", data={"name": "John Smith"})
+    # Same name (case-insensitive), no contact info -> still surfaces the chooser.
+    r = client.post("/customers/new", data={"name": "john smith"})
+    assert "might already be a customer" in r.text
+    with new_session() as s:
+        assert len(s.scalars(select(Customer)).all()) == 1
+    # Creating anyway (confirm_duplicate) is still allowed for genuine namesakes.
+    client.post("/customers/new", data={"name": "john smith", "confirm_duplicate": "1"})
+    with new_session() as s:
+        assert len(s.scalars(select(Customer)).all()) == 2

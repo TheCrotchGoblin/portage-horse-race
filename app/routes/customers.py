@@ -41,7 +41,7 @@ def create(
     return_to: str = Form(""),
 ):
     if not confirm_duplicate:
-        dupes = customer_service.find_duplicates(session, phone=phone, email=email)
+        dupes = customer_service.find_duplicates(session, name=name, phone=phone, email=email)
         if dupes:
             ctx = base_context(request, session, "customers")
             ctx.update({"dupes": dupes, "name": name, "phone": phone, "email": email,

@@ -129,8 +129,11 @@ def add_players(request: Request, team_id: int, session: Session = Depends(get_s
         flash(request, "That team was not found.", "danger")
         return _redirect("/setup")
     names = [line for line in players.replace(",", "\n").splitlines()]
-    created = setup_service.add_players(session, team, names)
-    flash(request, f"Added {len(created)} player(s) to {team.name}.")
+    created, skipped = setup_service.add_players(session, team, names)
+    msg = f"Added {len(created)} player(s) to {team.name}."
+    if skipped:
+        msg += f" Skipped {len(skipped)} name(s) already on the team: {', '.join(skipped)}."
+    flash(request, msg, "warning" if skipped else "success")
     return _redirect("/setup")
 
 
