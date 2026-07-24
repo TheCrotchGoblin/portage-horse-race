@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ tournament.name }}</h1>
+  <div>
+    <a href="/cashier" class="btn btn-brand">Take a wager</a>
+    <a href="/reports" class="btn btn-outline-secondary">Reports</a>
+  </div>
+</div>
+
+{% if board.warnings %}
+  <div class="alert alert-warning">
+    <ul class="mb-0">{% for w in board.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+  </div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card text-bg-light"><div class="card-body">
+      <div class="text-muted">Total taken (all teams)</div>
+      <div class="money money-xl text-brand">{{ board.total_gross_cents | dollars }}</div>
+      <div class="text-muted">{{ board.total_entries }} entries</div>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card"><div class="card-body">
+      <div class="text-muted">Status</div>
+      <div class="h4">{{ status_label(tournament.status) }}</div>
+      <div class="small text-muted">Entry price {{ tournament.entry_price_cents | dollars }} ·
+        club keeps {{ tournament.club_bps | percent }} ·
+        payouts {{ tournament.first_bps | percent }}/{{ tournament.second_bps | percent }}/{{ tournament.third_bps | percent }}</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% for card in board.cards %}
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>{{ card.team.name }}</strong>
+        <span class="badge {{ 'bg-success' if card.team.wagering_status=='OPEN' else 'bg-secondary' }} status-pill">
+          Wagering {{ wagering_label(card.team.wagering_status) }}
+        </span>
+      </div>
+      <div class="card-body">
+        {% if card.warnings %}
+          <div class="alert alert-warning py-2">
+            <ul class="mb-0 small">{% for w in card.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+          </div>
+        {% endif %}
+        <div class="row text-center mb-3">
+          <div class="col"><div class="text-muted small">Gross</div><div class="money money-lg">{{ card.financials.gross_cents | dollars }}</div></div>
+          <div class="col"><div class="text-muted small">Entries</div><div class="money money-lg">{{ card.financials.active_entries }}</div></div>
+          <div class="col"><div class="text-muted small">Club share</div><div class="money money-lg">{{ card.financials.club_share_cents | dollars }}</div></div>
+        </div>
+        <table class="table table-sm mb-3">
+          <tbody>
+            <tr><th>Prize pool</th><td class="text-end money">{{ card.financials.prize_pool_cents | dollars }}</td></tr>
+            <tr><td class="ps-4">1st place pool</td><td class="text-end money">{{ card.financials.first_pool_cents | dollars }}</td></tr>
+            <tr><td class="ps-4">2nd place pool</td><td class="text-end money">{{ card.financials.second_pool_cents | dollars }}</td></tr>
+            <tr><td class="ps-4">3rd place pool</td><td class="text-end money">{{ card.financials.third_pool_cents | dollars }}</td></tr>
+            {% if card.counted_cents is not none %}
+            <tr class="{{ 'table-warning' if card.variance_cents != 0 }}">
+              <th>Cash counted</th>
+              <td class="text-end money">{{ card.counted_cents | dollars }}
+                ({{ 'over' if card.variance_cents > 0 else 'short' if card.variance_cents < 0 else 'exact' }}
+                {{ card.variance_cents | dollars }})</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+
+        <form method="post" action="/teams/{{ card.team.id }}/cash-count" class="row g-1 align-items-end mb-3">
+          <div class="col-8">
+            <label class="form-label small mb-0">Count the cash for this team</label>
+            <div class="input-group input-group-sm"><span class="input-group-text">$</span>
+              <input name="counted" class="form-control" placeholder="e.g. {{ '%.2f' % (card.financials.gross_cents/100) }}"></div>
+          </div>
+          <div class="col-4"><button class="btn btn-outline-secondary btn-sm w-100">Save count</button></div>
+        </form>
+
+        <div class="text-muted small mb-1">Players by entries sold</div>
+        <ol class="list-group list-group-numbered">
+          {% for pt in card.players %}
+          <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+            {{ pt.player.name }}
+            <span><span class="badge bg-light text-dark">{{ pt.entries }} entries</span>
+              <span class="money ms-2">{{ pt.gross_cents | dollars }}</span></span>
+          </li>
+          {% else %}
+          <li class="list-group-item text-muted">No players yet.</li>
+          {% endfor %}
+        </ol>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

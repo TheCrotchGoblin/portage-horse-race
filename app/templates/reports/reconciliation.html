@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Final reconciliation{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ tournament.name }} — Final reconciliation</h1>
+  <button class="btn btn-brand no-print" onclick="window.print()">Print</button>
+</div>
+
+{% for r in recon %}
+<div class="card mb-3">
+  <div class="card-header"><strong>{{ r.card.team.name }}</strong></div>
+  <div class="card-body">
+    <table class="table table-sm mb-0">
+      <tr><th>Gross sales</th><td class="text-end money">{{ r.card.financials.gross_cents | dollars }}</td></tr>
+      <tr><td class="ps-4">Club share</td><td class="text-end money">{{ r.card.financials.club_share_cents | dollars }}</td></tr>
+      <tr><td class="ps-4">Prize pool</td><td class="text-end money">{{ r.card.financials.prize_pool_cents | dollars }}</td></tr>
+      <tr><td class="ps-5">1st / 2nd / 3rd pools</td><td class="text-end money">
+        {{ r.card.financials.first_pool_cents | dollars }} / {{ r.card.financials.second_pool_cents | dollars }} / {{ r.card.financials.third_pool_cents | dollars }}</td></tr>
+      <tr class="table-light"><th>Payouts generated</th><td class="text-end money">{{ r.totals.generated | dollars }}</td></tr>
+      <tr><td class="ps-4">Paid</td><td class="text-end money">{{ r.totals.paid | dollars }}</td></tr>
+      <tr><td class="ps-4">Unpaid</td><td class="text-end money">{{ r.totals.unpaid | dollars }}</td></tr>
+      {% if r.unclaimed %}
+      <tr class="table-warning"><th>Unclaimed pool (needs disposition)</th><td class="text-end money">{{ r.unclaimed | dollars }}</td></tr>
+      {% endif %}
+      {% if r.card.counted_cents is not none %}
+      <tr><th>Cash counted</th><td class="text-end money">{{ r.card.counted_cents | dollars }}
+        ({{ 'over' if r.card.variance_cents > 0 else 'short' if r.card.variance_cents < 0 else 'exact' }} {{ r.card.variance_cents | dollars }})</td></tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<div class="card border-dark">
+  <div class="card-header bg-dark text-white"><strong>All teams combined</strong></div>
+  <div class="card-body">
+    <table class="table mb-0">
+      <tr><th>Total gross</th><td class="text-end money">{{ grand.gross | dollars }}</td></tr>
+      <tr><th>Total club share</th><td class="text-end money">{{ grand.club | dollars }}</td></tr>
+      <tr><th>Total prize pools</th><td class="text-end money">{{ grand.pool | dollars }}</td></tr>
+      <tr><th>Total payouts generated</th><td class="text-end money">{{ grand.generated | dollars }}</td></tr>
+      <tr><th>Paid / Unpaid</th><td class="text-end money">{{ grand.paid | dollars }} / {{ grand.unpaid | dollars }}</td></tr>
+      <tr class="fw-bold"><td>Check: club + prize pools = gross?</td>
+        <td class="text-end">{{ 'BALANCED ✓' if (grand.club + grand.pool) == grand.gross else 'REVIEW' }}</td></tr>
+    </table>
+  </div>
+</div>
+{% endblock %}

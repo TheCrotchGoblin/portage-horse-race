@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Ledger{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Transaction ledger</h1>
+  <a href="/ledger/audit" class="btn btn-outline-secondary">Audit log</a>
+</div>
+
+<form method="get" action="/ledger" class="card card-body shadow-sm mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-2">
+      <label class="form-label small">Team</label>
+      <select name="team_id" class="form-select form-select-sm">
+        <option value="">All</option>
+        {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if filters.team_id==t.id }}>{{ t.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small">Player</label>
+      <select name="player_id" class="form-select form-select-sm">
+        <option value="">All</option>
+        {% for p in players %}<option value="{{ p.id }}" {{ 'selected' if filters.player_id==p.id }}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">All</option>
+        {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if filters.status==s }}>{{ s|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small">Operator</label>
+      <input name="operator" class="form-control form-control-sm" value="{{ filters.operator or '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small">From date</label>
+      <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filters.date_from or '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small">To date</label>
+      <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filters.date_to or '' }}">
+    </div>
+  </div>
+  <div class="mt-2">
+    <button class="btn btn-brand btn-sm">Apply filters</button>
+    <a href="/ledger" class="btn btn-outline-secondary btn-sm">Clear</a>
+  </div>
+</form>
+
+<div class="card shadow-sm">
+  <table class="table table-sm table-hover mb-0">
+    <thead><tr>
+      <th>Time</th><th>Operator</th><th>Customer</th><th>Team</th><th>Player</th>
+      <th class="text-end">Qty</th><th class="text-end">Amount</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for w in wagers %}
+      <tr class="{{ 'table-light text-muted' if w.status=='void' }}">
+        <td class="small">{{ w.created_at | datetime }}</td>
+        <td class="small">{{ w.operator_id or '' }}</td>
+        <td><a href="/customers/{{ w.customer_id }}">{{ w.customer.name }}</a></td>
+        <td>{{ w.team.name }}</td>
+        <td>{{ w.player.name }}</td>
+        <td class="text-end">{{ w.quantity }}</td>
+        <td class="text-end money">{{ w.amount_cents | dollars }}</td>
+        <td>
+          {% if w.status=='void' %}
+            <span class="badge bg-secondary" title="{{ w.void_reason }}">Voided</span>
+          {% else %}<span class="badge bg-success">Active</span>{% endif %}
+        </td>
+        <td class="text-end">
+          {% if w.status=='active' %}
+          <button class="btn btn-sm btn-link text-danger p-0" data-bs-toggle="collapse" data-bs-target="#lv-{{ w.id }}">Void</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% if w.status=='active' %}
+      <tr class="collapse" id="lv-{{ w.id }}"><td colspan="9">
+        <form method="post" action="/wagers/{{ w.id }}/void" class="row g-2 align-items-end">
+          <input type="hidden" name="return_to" value="/ledger">
+          <div class="col-md-5"><label class="form-label small mb-0">Reason</label>
+            <input name="reason" class="form-control form-control-sm" required></div>
+          <div class="col-md-3"><label class="form-label small mb-0">Admin PIN (if set)</label>
+            <input name="admin_pin" class="form-control form-control-sm"></div>
+          <div class="col-md-2"><button class="btn btn-danger btn-sm">Confirm void</button></div>
+        </form>
+      </td></tr>
+      {% endif %}
+      {% else %}
+      <tr><td colspan="9" class="text-muted text-center py-4">No transactions match.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

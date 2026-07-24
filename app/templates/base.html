@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Portage Horse Race{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'&gt;&lt;text y='14' font-size='14'&gt;⛳&lt;/text&gt;&lt;/svg&gt;">
+
+  <link rel="stylesheet" href="/static/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/vendor/htmx.min.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-brand no-print">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">⛳ Portage Horse Race</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="nav">
+        <ul class="navbar-nav me-auto">
+          {% set nav = active_nav | default('') %}
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='dashboard' }}" href="/">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='cashier' }}" href="/cashier">Cashier</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='ledger' }}" href="/ledger">Ledger</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='customers' }}" href="/customers">Customers</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='results' }}" href="/results">Results</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='payouts' }}" href="/payouts">Payouts</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='reports' }}" href="/reports">Reports</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='setup' }}" href="/setup">Setup</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active fw-bold' if nav=='admin' }}" href="/admin">Backup</a></li>
+        </ul>
+        {% if tournament %}
+        <span class="navbar-text text-white">
+          {{ tournament.name }} &middot;
+          <span class="badge bg-light text-dark status-pill">{{ status_label(tournament.status) }}</span>
+        </span>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-fluid py-3">
+    {% block flash %}
+      {% if flash %}
+        <div class="alert alert-{{ flash_kind|default('info') }} alert-dismissible" role="alert">
+          {{ flash }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endif %}
+    {% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/vendor/bootstrap.bundle.min.js"></script>
+</body>
+</html>

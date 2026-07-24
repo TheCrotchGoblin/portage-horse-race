@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Possible duplicate{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-7">
+  <div class="alert alert-warning">
+    <strong>This might already be a customer.</strong>
+    Someone with the same phone or email is already on file. Pick them below, or create a new record anyway.
+  </div>
+  <div class="card shadow-sm mb-3">
+    <div class="card-header">Existing matches</div>
+    <ul class="list-group list-group-flush">
+      {% for c in dupes %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span><strong>{{ c.name }}</strong> <span class="text-muted small">{{ c.phone_raw or '' }} {{ c.email or '' }}</span></span>
+        <a class="btn btn-sm btn-brand"
+           href="{{ '/cashier?customer_id=%d' % c.id if return_to=='cashier' else '/customers/%d' % c.id }}">Use this one</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <form method="post" action="/customers/new">
+    <input type="hidden" name="name" value="{{ name }}">
+    <input type="hidden" name="phone" value="{{ phone }}">
+    <input type="hidden" name="email" value="{{ email }}">
+    <input type="hidden" name="notes" value="{{ notes }}">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <input type="hidden" name="confirm_duplicate" value="1">
+    <button class="btn btn-outline-danger">No, create a new customer called "{{ name }}"</button>
+  </form>
+</div></div>
+{% endblock %}

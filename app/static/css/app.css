@@ -1,0 +1,94 @@
+/* Portage Horse Race — custom styling on top of Bootstrap.
+   Priorities: large touch-friendly controls, obvious selected state, high
+   contrast, status never conveyed by colour alone (spec NFR-06). */
+
+:root {
+  --brand: #14532d;        /* fairway green */
+  --brand-dark: #0b3d20;
+  --accent: #b45309;       /* amber for money/warnings */
+}
+
+body {
+  min-height: 100vh;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.bg-brand { background-color: var(--brand) !important; }
+.text-brand { color: var(--brand) !important; }
+.btn-brand {
+  background-color: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.btn-brand:hover, .btn-brand:focus { background-color: var(--brand-dark); color: #fff; }
+.btn-outline-brand {
+  color: var(--brand);
+  border-color: var(--brand);
+  background: #fff;
+}
+.btn-outline-brand:hover, .btn-outline-brand:focus { background-color: var(--brand); color: #fff; }
+
+/* Money should be unmistakable and large. */
+.money { font-variant-numeric: tabular-nums; font-weight: 600; }
+.money-lg { font-size: 1.6rem; }
+.money-xl { font-size: 2.4rem; }
+
+/* Big selection buttons for the cashier screen. */
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+.pick-btn {
+  min-height: 84px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  border: 2px solid #ced4da;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: transform 0.05s ease, border-color 0.1s ease;
+}
+.pick-btn:hover { border-color: var(--brand); }
+.pick-btn:active { transform: scale(0.98); }
+.pick-btn.selected {
+  border-color: var(--brand);
+  background: #e7f2ec;
+  box-shadow: 0 0 0 3px rgba(20, 83, 45, 0.25);
+}
+.pick-btn .sub { font-size: 0.85rem; color: #555; font-weight: 500; }
+.pick-btn.selected .sub { color: var(--brand-dark); }
+
+.qty-quick .btn { min-width: 64px; font-weight: 600; }
+
+/* Status pills carry an icon/label, not colour alone. */
+.status-pill { font-weight: 600; }
+
+/* Focus visibility for keyboard users. */
+a:focus-visible, button:focus-visible, .pick-btn:focus-visible,
+input:focus-visible, select:focus-visible {
+  outline: 3px solid #ffbf47;
+  outline-offset: 2px;
+}
+
+/* Setup wizard stepper. */
+.wizard-steps { list-style: none; display: flex; gap: 0.5rem; padding: 0; flex-wrap: wrap; }
+.wizard-steps li {
+  padding: 0.35rem 0.75rem; border-radius: 999px; background: #e9ecef; font-size: 0.9rem;
+}
+.wizard-steps li.active { background: var(--brand); color: #fff; font-weight: 600; }
+.wizard-steps li.done { background: #cfe8db; color: var(--brand-dark); }
+
+@media print {
+  .no-print, .navbar, .btn { display: none !important; }
+  body { background: #fff; }
+}

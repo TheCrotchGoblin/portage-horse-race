@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Build / packaging output
+build/
+dist/
+*.spec.bak
+
+# Local app data & dev scratch
+.devdata/
+.exetest/
+.installruntest/
+*.out
+.devdata_cookies.txt
+
+# SQLite
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# OS
+Thumbs.db
+Desktop.ini

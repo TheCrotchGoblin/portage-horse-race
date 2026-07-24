@@ -1,0 +1,18 @@
+{% if results %}
+<div class="list-group">
+  {% for c in results %}
+  <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+     href="/cashier?customer_id={{ c.id }}">
+    <span>
+      <strong>{{ c.name }}</strong>
+      <span class="text-muted small">{{ c.phone_raw or '' }} {{ c.email or '' }}</span>
+    </span>
+    <span class="badge bg-brand">Select</span>
+  </a>
+  {% endfor %}
+</div>
+{% elif q %}
+<div class="text-muted small px-1">No matches for "{{ q }}". Add them as a new customer on the right.</div>
+{% else %}
+<div class="text-muted small px-1">Start typing to find a customer.</div>
+{% endif %}

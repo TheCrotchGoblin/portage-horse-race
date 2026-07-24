@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Backup &amp; administration{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Backup &amp; administration</h1>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Backups</strong>
+        <form method="post" action="/admin/backup"><button class="btn btn-brand btn-sm">Back up now</button></form>
+      </div>
+      <div class="card-body">
+        <p class="small text-muted">Backups are created automatically at startup and after major events.
+          They are saved in:<br><code>{{ backup_dir }}</code></p>
+        <table class="table table-sm">
+          <thead><tr><th>Backup file</th><th class="text-end">Size</th><th>Restore</th></tr></thead>
+          <tbody>
+            {% for b in backups %}
+            <tr>
+              <td class="small">{{ b.name }}</td>
+              <td class="text-end small">{{ b.size_kb }} KB</td>
+              <td>
+                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#r-{{ loop.index }}">Restore</button>
+                <div class="collapse mt-1" id="r-{{ loop.index }}">
+                  <form method="post" action="/admin/restore"
+                        data-confirm="Restore this backup? Your current data will be replaced (a safety copy is kept).">
+                    <input type="hidden" name="backup_name" value="{{ b.name }}">
+                    {% if has_pin %}<input class="form-control form-control-sm mb-1" name="admin_pin" placeholder="Admin PIN">{% endif %}
+                    <button class="btn btn-sm btn-danger">Confirm restore</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted text-center">No backups yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>This station</strong></div>
+      <div class="card-body">
+        <form method="post" action="/admin/settings">
+          <div class="mb-3">
+            <label class="form-label">Operator / station name</label>
+            <input name="operator" class="form-control" value="{{ operator }}">
+            <div class="form-text">Recorded on every wager, void and payout.</div>
+          </div>
+          <hr>
+          <div class="mb-2">
+            <label class="form-label">Administrator PIN</label>
+            <input name="new_pin" class="form-control" placeholder="{{ 'Set a new PIN' if not has_pin else 'Enter a new PIN' }}">
+            <div class="form-text">Protects voids, result changes, payout reversals and restore.</div>
+          </div>
+          {% if has_pin %}
+          <div class="mb-2">
+            <label class="form-label">Current PIN (required to change)</label>
+            <input name="current_pin" class="form-control">
+          </div>
+          {% endif %}
+          <button class="btn btn-brand">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Team summary{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">{{ tournament.name }} — Team summary</h1>
+    <div class="text-muted">{{ tournament.event_date or '' }} · Status: {{ status_label(tournament.status) }}</div>
+  </div>
+  <button class="btn btn-brand no-print" onclick="window.print()">Print</button>
+</div>
+
+{% for card in board.cards %}
+<div class="card mb-3">
+  <div class="card-header"><strong>{{ card.team.name }}</strong> — Wagering {{ wagering_label(card.team.wagering_status) }}</div>
+  <div class="card-body">
+    <table class="table table-sm">
+      <tr><th>Gross sales</th><td class="text-end money">{{ card.financials.gross_cents | dollars }}</td>
+          <th>Active entries</th><td class="text-end">{{ card.financials.active_entries }}</td></tr>
+      <tr><th>Club share</th><td class="text-end money">{{ card.financials.club_share_cents | dollars }}</td>
+          <th>Prize pool</th><td class="text-end money">{{ card.financials.prize_pool_cents | dollars }}</td></tr>
+      <tr><th>1st pool</th><td class="text-end money">{{ card.financials.first_pool_cents | dollars }}</td>
+          <th>2nd / 3rd pools</th><td class="text-end money">{{ card.financials.second_pool_cents | dollars }} / {{ card.financials.third_pool_cents | dollars }}</td></tr>
+    </table>
+    <h3 class="h6">Entries by player</h3>
+    <table class="table table-sm">
+      <thead><tr><th>Player</th><th class="text-end">Entries</th><th class="text-end">Gross</th></tr></thead>
+      <tbody>
+        {% for pt in card.players %}
+        <tr><td>{{ pt.player.name }}</td><td class="text-end">{{ pt.entries }}</td><td class="text-end money">{{ pt.gross_cents | dollars }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

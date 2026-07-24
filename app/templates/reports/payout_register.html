@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Payout register{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ tournament.name }} — Payout register</h1>
+  <button class="btn btn-brand no-print" onclick="window.print()">Print</button>
+</div>
+<table class="table table-sm">
+  <thead><tr><th>Customer</th><th>Contact</th><th>Team / Place</th><th>Player</th>
+    <th class="text-end">Entries</th><th class="text-end">Amount</th><th>Status</th><th>Paid</th></tr></thead>
+  <tbody>
+    {% for p in payouts %}
+    <tr>
+      <td>{{ p.customer.name }}</td>
+      <td class="small">{{ p.customer.phone_raw or '' }} {{ p.customer.email or '' }}</td>
+      <td>{{ p.placement.player.team.name }} · {{ position_label(p.placement.position) }}</td>
+      <td>{{ p.placement.player.name }}</td>
+      <td class="text-end">{{ p.winning_entries }}</td>
+      <td class="text-end money">{{ p.amount_cents | dollars }}</td>
+      <td>{{ payout_label(p.status) }}</td>
+      <td class="small">{{ p.paid_at | datetime }} {{ p.paid_by or '' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="text-center text-muted">No payouts generated yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

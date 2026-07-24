@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Payouts{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Payouts</h1>
+  <div class="text-end">
+    <div>Unpaid: <span class="money text-danger">{{ unpaid_total | dollars }}</span></div>
+    <div>Paid: <span class="money text-success">{{ paid_total | dollars }}</span></div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-brand text-white"><strong>To pay ({{ unpaid|length }})</strong></div>
+  <table class="table table-hover mb-0">
+    <thead><tr><th>Customer</th><th>Contact</th><th>Team / Place</th><th>Player</th>
+      <th class="text-end">Entries</th><th class="text-end">Amount</th><th>Pay</th></tr></thead>
+    <tbody>
+      {% for p in unpaid %}
+      <tr>
+        <td><a href="/customers/{{ p.customer_id }}">{{ p.customer.name }}</a></td>
+        <td class="small">{{ p.customer.phone_raw or '' }}<br>{{ p.customer.email or '' }}</td>
+        <td>{{ p.placement.player.team.name }} · {{ position_label(p.placement.position) }}</td>
+        <td>{{ p.placement.player.name }}</td>
+        <td class="text-end">{{ p.winning_entries }}</td>
+        <td class="text-end money money-lg">{{ p.amount_cents | dollars }}</td>
+        <td>
+          <form method="post" action="/payouts/{{ p.id }}/pay" class="d-flex gap-1"
+                data-confirm="Mark {{ p.customer.name }} as paid {{ p.amount_cents | dollars }}?">
+            <select name="method" class="form-select form-select-sm" style="width:90px">
+              <option value="cash">Cash</option><option value="cheque">Cheque</option><option value="other">Other</option>
+            </select>
+            <button class="btn btn-success btn-sm">Mark paid</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-muted text-center py-4">
+        No unpaid payouts. Generate them from the <a href="/results">Results</a> screen.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header"><strong>Settled ({{ settled|length }})</strong></div>
+  <table class="table table-sm mb-0">
+    <thead><tr><th>Customer</th><th>Team / Place</th><th class="text-end">Amount</th><th>Status</th><th>When / by</th><th></th></tr></thead>
+    <tbody>
+      {% for p in settled %}
+      <tr>
+        <td>{{ p.customer.name }}</td>
+        <td>{{ p.placement.player.team.name }} · {{ position_label(p.placement.position) }}</td>
+        <td class="text-end money">{{ p.amount_cents | dollars }}</td>
+        <td><span class="badge {{ 'bg-success' if p.status=='PAID' else 'bg-secondary' }}">{{ payout_label(p.status) }}</span></td>
+        <td class="small">{{ p.paid_at | datetime }} {{ p.paid_by or '' }} {{ ('· ' ~ p.payment_method) if p.payment_method else '' }}</td>
+        <td class="text-end">
+          {% if p.status=='PAID' %}
+          <button class="btn btn-sm btn-link text-danger p-0" data-bs-toggle="collapse" data-bs-target="#rev-{{ p.id }}">Reverse</button>
+          <div class="collapse mt-1" id="rev-{{ p.id }}">
+            <form method="post" action="/payouts/{{ p.id }}/reverse">
+              <input class="form-control form-control-sm mb-1" name="reason" placeholder="Reason" required>
+              <input class="form-control form-control-sm mb-1" name="admin_pin" placeholder="Admin PIN">
+              <button class="btn btn-sm btn-danger">Confirm reverse</button>
+            </form>
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-muted text-center py-3">Nothing settled yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

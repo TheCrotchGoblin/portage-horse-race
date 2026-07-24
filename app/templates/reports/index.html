@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Reports &amp; exports</h1>
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h5">Printable reports</h2>
+      <p class="text-muted small">Open, then use your browser's Print (Ctrl+P) to print or save as PDF.</p>
+      <div class="d-grid gap-2">
+        <a class="btn btn-outline-brand" href="/reports/print/team-summary" target="_blank">Team summary</a>
+        <a class="btn btn-outline-brand" href="/reports/print/payouts" target="_blank">Payout register</a>
+        <a class="btn btn-outline-brand" href="/reports/print/reconciliation" target="_blank">Final reconciliation</a>
+      </div>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h5">Export to spreadsheet (CSV)</h2>
+      <p class="text-muted small">Opens in Excel or Google Sheets. Contains stable IDs and exact totals.</p>
+      <div class="d-grid gap-2">
+        <a class="btn btn-outline-secondary" href="/reports/export/customers">Customers</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/wagers">Wagers (ledger)</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/player-totals">Player totals</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/payouts">Payouts</a>
+        <a class="btn btn-outline-secondary" href="/reports/export/audit">Audit log</a>
+      </div>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

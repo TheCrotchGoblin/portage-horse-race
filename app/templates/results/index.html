@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Results{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Enter results</h1>
+
+<ul class="nav nav-pills mb-3">
+  {% for t in teams %}
+  <li class="nav-item">
+    <a class="nav-link {{ 'active' if t.id==team.id }}" href="/results?team_id={{ t.id }}">{{ t.name }}</a>
+  </li>
+  {% endfor %}
+</ul>
+
+{% if has_payouts %}
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+  <div>Payouts have been generated for <strong>{{ team.name }}</strong>. To change the results you must clear them first.</div>
+  <form method="post" action="/results/{{ team.id }}/regenerate" data-confirm="Clear unpaid payouts for {{ team.name }}?">
+    <input class="form-control form-control-sm d-inline-block mb-1" style="width:140px" name="admin_pin" placeholder="Admin PIN">
+    <button class="btn btn-sm btn-outline-danger">Clear payouts</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Who placed on {{ team.name }}?</strong></div>
+      <div class="card-body">
+        <form method="post" action="/results/{{ team.id }}/placements">
+          {% for pos, label in [(1,'1st place'),(2,'2nd place'),(3,'3rd place')] %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{{ label }}</label>
+            <select name="{{ ['first','second','third'][pos-1] }}_player_id" class="form-select form-select-lg" required
+                    {{ 'disabled' if has_payouts }}>
+              <option value="">— choose player —</option>
+              {% for p in players %}
+              <option value="{{ p.id }}" {{ 'selected' if placements.get(pos) and placements[pos].player_id==p.id }}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+          {% if not has_payouts %}
+          <label class="form-label small">Administrator PIN (if set)</label>
+          <input name="admin_pin" class="form-control mb-3" placeholder="Admin PIN">
+          <button class="btn btn-brand">Save results</button>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Preview</strong></div>
+      <div class="card-body">
+        <table class="table">
+          <thead><tr><th>Place</th><th>Player</th><th class="text-end">Pool</th><th class="text-end">Entries</th><th class="text-end">Per entry</th></tr></thead>
+          <tbody>
+            {% for pv in previews %}
+            <tr class="{{ 'table-warning' if pv.unclaimed and pv.player }}">
+              <td>{{ position_label(pv.position) }}</td>
+              <td>{{ pv.player.name if pv.player else '—' }}</td>
+              <td class="text-end money">{{ pv.pool_cents | dollars }}</td>
+              <td class="text-end">{{ pv.winning_entries }}</td>
+              <td class="text-end money">
+                {% if pv.player and pv.unclaimed %}<span class="text-danger">Unclaimed</span>
+                {% elif pv.player %}{{ pv.per_entry_cents | dollars }}{% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if not has_payouts %}
+        <form method="post" action="/results/{{ team.id }}/generate"
+              data-confirm="Generate payouts for {{ team.name }}? Double-check the results above.">
+          <input class="form-control form-control-sm mb-2" name="admin_pin" placeholder="Admin PIN (if set)">
+          <button class="btn btn-success w-100"
+                  {{ 'disabled' if not (previews[0].player and previews[1].player and previews[2].player) }}>
+            Generate payouts for {{ team.name }}
+          </button>
+        </form>
+        {% else %}
+        <a href="/payouts" class="btn btn-brand w-100">Go to payouts</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

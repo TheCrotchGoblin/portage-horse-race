@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if customer else 'New' }} customer{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-6">
+  <h1 class="h4 mb-3">{{ 'Edit customer' if customer else 'New customer' }}</h1>
+  <div class="card shadow-sm"><div class="card-body">
+    <form method="post" action="{{ ('/customers/%d/edit' % customer.id) if customer else '/customers/new' }}">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+        <input name="name" class="form-control form-control-lg" required data-autofocus
+               value="{{ customer.name if customer else '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Phone <span class="text-muted">(optional)</span></label>
+        <input name="phone" class="form-control" value="{{ customer.phone_raw if customer else '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email <span class="text-muted">(optional)</span></label>
+        <input name="email" class="form-control" value="{{ customer.email if customer else '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="2">{{ customer.notes if customer else '' }}</textarea>
+      </div>
+      <button class="btn btn-brand">Save</button>
+      <a href="{{ ('/customers/%d' % customer.id) if customer else '/customers' }}" class="btn btn-link">Cancel</a>
+    </form>
+  </div></div>
+</div></div>
+{% endblock %}

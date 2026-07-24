@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Audit log</h1>
+  <a href="/ledger" class="btn btn-outline-secondary">Back to ledger</a>
+</div>
+<p class="text-muted">Every material action is recorded here and can never be edited or removed.</p>
+<div class="card shadow-sm">
+  <table class="table table-sm mb-0">
+    <thead><tr><th>Time</th><th>Who</th><th>Action</th><th>Item</th><th>Reason / details</th></tr></thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td class="small">{{ e.created_at | datetime }}</td>
+        <td class="small">{{ e.actor or '' }}</td>
+        <td><span class="badge bg-light text-dark">{{ e.action_type }}</span></td>
+        <td class="small">{{ e.entity_type or '' }} {{ e.entity_id or '' }}</td>
+        <td class="small text-muted">{{ e.reason or e.after_json or '' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-muted text-center py-4">No audit entries yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

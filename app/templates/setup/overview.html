@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Setup — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Setup: {{ tournament.name }}</h1>
+  <span class="badge bg-secondary status-pill">{{ status_label(tournament.status) }}</span>
+</div>
+
+<ul class="wizard-steps mb-4">
+  <li class="done">1. Tournament details</li>
+  <li class="active">2. Teams &amp; players</li>
+  <li class="{{ 'done' if tournament.status not in ['DRAFT'] }}">3. Open wagering</li>
+</ul>
+
+<div class="row g-3">
+  <!-- Teams & players -->
+  <div class="col-lg-8">
+    {% for team in teams %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>{{ team.name }}</strong>
+        <span>
+          <span class="badge {{ 'bg-success' if team.wagering_status=='OPEN' else 'bg-secondary' }}">
+            Wagering {{ wagering_label(team.wagering_status) }}</span>
+          {% if not locked %}
+          <form method="post" action="/setup/teams/{{ team.id }}/delete" class="d-inline"
+                data-confirm="Remove team {{ team.name }} and its players?">
+            <button class="btn btn-sm btn-outline-danger">Remove</button></form>
+          {% endif %}
+        </span>
+      </div>
+      <div class="card-body">
+        {% if team.players %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% for p in team.players %}
+          <span class="badge bg-light text-dark border p-2">
+            {{ p.name }}
+            {% if not locked %}
+            <form method="post" action="/setup/players/{{ p.id }}/delete" class="d-inline">
+              <button class="btn-close btn-sm ms-1" style="font-size:.6rem" title="Remove"></button></form>
+            {% endif %}
+          </span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">No players yet — add them below.</p>
+        {% endif %}
+        <form method="post" action="/setup/teams/{{ team.id }}/players">
+          <label class="form-label small">Add players (one per line, or comma-separated)</label>
+          <textarea name="players" class="form-control mb-2" rows="3"
+                    placeholder="Jane Doe&#10;John Smith"></textarea>
+          <button class="btn btn-outline-brand btn-sm">Add players</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if not locked %}
+    <form method="post" action="/setup/teams" class="card card-body shadow-sm">
+      <label class="form-label fw-semibold">Add a team</label>
+      <div class="input-group">
+        <input name="team_name" class="form-control" placeholder="Team A" required>
+        <button class="btn btn-brand">Add team</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- Config + open/close -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-3">
+      <div class="card-header"><strong>Open / close wagering</strong></div>
+      <div class="card-body">
+        <p class="small text-muted">Open when you're ready to take cash. Close at the cutoff.</p>
+        <form method="post" action="/setup/open" class="mb-2">
+          <button class="btn btn-success w-100">Open wagering (all teams)</button></form>
+        <form method="post" action="/setup/close">
+          <button class="btn btn-outline-secondary w-100">Close wagering (all teams)</button></form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Financial settings</strong></div>
+      <div class="card-body">
+        {% if locked %}
+          <div class="alert alert-info py-2 small">Sales have started, so these are locked.</div>
+        {% endif %}
+        <form method="post" action="/setup/config">
+          <div class="mb-2"><label class="form-label small">Name</label>
+            <input name="name" class="form-control form-control-sm" value="{{ tournament.name }}" {{ 'disabled' if locked }}></div>
+          <div class="mb-2"><label class="form-label small">Event date</label>
+            <input type="date" name="event_date" class="form-control form-control-sm" value="{{ tournament.event_date or '' }}" {{ 'disabled' if locked }}></div>
+          <div class="mb-2"><label class="form-label small">Price per entry</label>
+            <div class="input-group input-group-sm"><span class="input-group-text">$</span>
+              <input name="entry_price" class="form-control" value="{{ '%.2f' % (tournament.entry_price_cents/100) }}" {{ 'disabled' if locked }}></div></div>
+          <div class="mb-2"><label class="form-label small">Club keeps %</label>
+            <input name="club_percent" class="form-control form-control-sm" value="{{ tournament.club_bps/100 }}" {{ 'disabled' if locked }}></div>
+          <div class="row g-1">
+            <div class="col"><label class="form-label small">1st%</label>
+              <input name="first_percent" class="form-control form-control-sm" value="{{ tournament.first_bps/100 }}" {{ 'disabled' if locked }}></div>
+            <div class="col"><label class="form-label small">2nd%</label>
+              <input name="second_percent" class="form-control form-control-sm" value="{{ tournament.second_bps/100 }}" {{ 'disabled' if locked }}></div>
+            <div class="col"><label class="form-label small">3rd%</label>
+              <input name="third_percent" class="form-control form-control-sm" value="{{ tournament.third_bps/100 }}" {{ 'disabled' if locked }}></div>
+          </div>
+          {% if not locked %}
+          <button class="btn btn-outline-brand btn-sm mt-3 w-100">Save settings</button>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
