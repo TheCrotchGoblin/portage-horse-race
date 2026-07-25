@@ -338,6 +338,36 @@ def pay_payout(session: Session, payout: Payout, *, method: str, operator: str, 
     return payout
 
 
+WAIVE_KINDS = {
+    "waived": "Waived by winner",
+    "donated": "Donated to the club",
+}
+
+
+def waive_payout(session: Session, payout: Payout, *, kind: str, reason: str, operator: str) -> Payout:
+    """Close out a winner who declines or can't be reached: the amount is waived
+    or donated to the club (FIN-08). A resolved outcome — no longer outstanding,
+    so it stops blocking settlement without falsely marking anyone 'paid'."""
+    _ensure_not_locked(payout.placement.player.team.tournament)
+    if payout.status == PayoutStatus.PAID:
+        raise PayoutError("This payout has already been paid — reverse it first if it must be waived.")
+    if kind not in WAIVE_KINDS:
+        raise PayoutError("Choose whether the amount is waived or donated to the club.")
+    if not (reason or "").strip():
+        raise PayoutError("Please add a short reason (e.g. 'unreachable after 3 calls').")
+    before = {"status": payout.status}
+    payout.status = PayoutStatus.WAIVED
+    payout.paid_at = utcnow()
+    payout.paid_by = operator
+    payout.payment_method = kind
+    payout.note = reason.strip()
+    audit.record(session, action_type="payout_waived", actor=operator,
+                 entity_type="payout", entity_id=payout.id,
+                 before=before, after={"status": PayoutStatus.WAIVED, "kind": kind},
+                 reason=reason.strip())
+    return payout
+
+
 def reverse_payout(session: Session, payout: Payout, *, reason: str, operator: str) -> Payout:
     _ensure_not_locked(payout.placement.player.team.tournament)
     if not (reason or "").strip():

@@ -85,10 +85,12 @@
           data-confirm="Undo order {{ last_order.reference }} ({{ last_order.entries }} entrie(s), {{ last_order.total_cents | dollars }}) for {{ last_order.customer }}?">
       <span class="small"><i class="bi bi-check-circle me-1"></i>Recorded {{ last_order.reference }} —
         {{ last_order.entries }} entrie(s), {{ last_order.total_cents | dollars }}</span>
-      <span class="d-flex gap-1">
-        <input class="form-control form-control-sm" style="width:110px" name="admin_pin" placeholder="Admin PIN">
+      <span class="d-flex gap-1 align-items-center">
+        <a href="/cashier/receipt/{{ last_order.reference }}" class="btn btn-sm btn-outline-brand text-nowrap"
+           target="_blank"><i class="bi bi-printer me-1"></i>Receipt</a>
+        <input class="form-control form-control-sm" style="width:100px" name="admin_pin" placeholder="Admin PIN">
         <input type="hidden" name="reference" value="{{ last_order.reference }}">
-        <button class="btn btn-sm btn-outline-danger text-nowrap"><i class="bi bi-arrow-counterclockwise me-1"></i>Undo order</button>
+        <button class="btn btn-sm btn-outline-danger text-nowrap"><i class="bi bi-arrow-counterclockwise me-1"></i>Undo</button>
       </span>
     </form>
     {% endif %}

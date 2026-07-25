@@ -96,11 +96,23 @@
           {% if p.contacted_at %}<div class="small text-muted">{{ p.contacted_at | datetime }}</div>{% endif %}
         </td>
         <td>
-          <form method="post" action="/payouts/{{ p.id }}/pay" class="d-flex gap-1"
+          <form method="post" action="/payouts/{{ p.id }}/pay" class="d-flex gap-1 mb-1"
                 data-confirm="Mark {{ p.customer.name }} as paid {{ p.amount_cents | dollars }}?">
             {{ pay_method_select() }}
             <button class="btn btn-success btn-sm"><i class="bi bi-check-lg me-1"></i>Mark paid</button>
           </form>
+          <button class="btn btn-link btn-sm text-muted p-0" data-bs-toggle="collapse" data-bs-target="#waive-{{ p.id }}">Can't pay? Waive / donate</button>
+          <div class="collapse mt-1" id="waive-{{ p.id }}">
+            <form method="post" action="/payouts/{{ p.id }}/waive" class="border rounded p-2 bg-light"
+                  data-confirm="Close out {{ p.customer.name }}'s {{ p.amount_cents | dollars }} without paying it?">
+              <select name="kind" class="form-select form-select-sm mb-1">
+                {% for key, label in waive_kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+              </select>
+              <input name="reason" class="form-control form-control-sm mb-1" placeholder="Reason (required)" required>
+              <input name="admin_pin" class="form-control form-control-sm mb-1" placeholder="Admin PIN">
+              <button class="btn btn-sm btn-outline-warning w-100">Close out this payout</button>
+            </form>
+          </div>
         </td>
       </tr>
       {% else %}

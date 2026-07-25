@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Receipt {{ reference }}{% endblock %}
+{% block content %}
+<div class="no-print d-flex justify-content-between align-items-center mb-3">
+  <a href="/cashier" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Cashier</a>
+  <button class="btn btn-brand" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print receipt</button>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-center mb-3">
+          <img src="/static/icon.png" width="48" height="48" alt="">
+          <h1 class="h5 mt-2 mb-0">{{ tournament.name }}</h1>
+          <div class="text-muted small">Horse race — proof of purchase</div>
+        </div>
+        {% if all_void %}<div class="alert alert-secondary py-2 small text-center">This order has been voided.</div>{% endif %}
+        <table class="table table-sm mb-2">
+          <tr><th>Reference</th><td class="text-end"><strong>{{ reference }}</strong></td></tr>
+          <tr><th>Customer</th><td class="text-end">{{ customer.name }}</td></tr>
+          <tr><th>Date</th><td class="text-end">{{ placed_at | datetime }}</td></tr>
+          {% if operator %}<tr><th>Cashier</th><td class="text-end">{{ operator }}</td></tr>{% endif %}
+        </table>
+        <table class="table table-sm">
+          <thead><tr><th>Player</th><th class="text-end">Entries</th><th class="text-end">Amount</th></tr></thead>
+          <tbody>
+            {% for w in order_wagers %}
+            <tr class="{{ 'text-decoration-line-through text-muted' if w.status == 'void' }}">
+              <td>{{ w.player.name }}<div class="text-muted small">{{ w.team.name }}</div></td>
+              <td class="text-end">{{ w.quantity }}</td>
+              <td class="text-end money">{{ w.amount_cents | dollars }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr class="border-top"><th>Total ({{ entries }} entries)</th><th></th>
+            <th class="text-end money">{{ total_cents | dollars }}</th></tr></tfoot>
+        </table>
+        <p class="text-center small text-muted mb-0">Keep this slip to claim any winnings.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

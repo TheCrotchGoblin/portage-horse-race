@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.models import Payout, Placement, Team
 from app.models.enums import PayoutStatus
-from app.routes.deps import admin_pin_ok, base_context, operator_name
+from app.routes.deps import admin_pin_ok, base_context, get_active_tournament, operator_name
 from app.services import payouts as payout_service
 from app.services.payouts import PayoutError
 from app.templating import flash, render
@@ -38,6 +38,7 @@ def payouts(request: Request, session: Session = Depends(get_session)):
         "unclaimed": payout_service.unclaimed_placements(session, tournament.id),
         "dispositions": payout_service.DISPOSITIONS,
         "contact_statuses": payout_service.CONTACT_STATUSES,
+        "waive_kinds": payout_service.WAIVE_KINDS,
         "event_settled": tournament.is_settled,
         "settle_blockers": payout_service.settlement_status_blockers(session, tournament),
     })
@@ -130,6 +131,33 @@ def pay(
         flash(request, str(exc), "danger")
         return RedirectResponse("/payouts", status_code=303)
     flash(request, "Marked as paid.")
+    return RedirectResponse("/payouts", status_code=303)
+
+
+@router.post("/{payout_id}/waive")
+def waive(
+    request: Request,
+    payout_id: int,
+    session: Session = Depends(get_session),
+    kind: str = Form("waived"),
+    reason: str = Form(...),
+    admin_pin: str = Form(""),
+):
+    payout = session.get(Payout, payout_id)
+    if payout is None:
+        flash(request, "Payout not found.", "danger")
+        return RedirectResponse("/payouts", status_code=303)
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN.", "danger")
+        return RedirectResponse("/payouts", status_code=303)
+    try:
+        payout_service.waive_payout(session, payout, kind=kind, reason=reason,
+                                    operator=operator_name(request))
+        payout_service.check_settled(session, get_active_tournament(session))
+    except PayoutError as exc:
+        flash(request, str(exc), "danger")
+        return RedirectResponse("/payouts", status_code=303)
+    flash(request, "Payout closed out.")
     return RedirectResponse("/payouts", status_code=303)
 
 

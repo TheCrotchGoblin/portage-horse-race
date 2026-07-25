@@ -265,6 +265,45 @@ def checkout(request: Request, session: Session = Depends(get_session), received
     return RedirectResponse("/cashier", status_code=303)
 
 
+@router.get("/cashier/receipt/{reference}")
+def receipt(request: Request, reference: str, session: Session = Depends(get_session)):
+    """A print-ready proof-of-purchase slip for one order (POS-05)."""
+    tournament = get_active_tournament(session)
+    if tournament is None:
+        return RedirectResponse("/", status_code=303)
+    wagers = wager_service.order_wagers(session, tournament.id, reference)
+    active = [w for w in wagers if w.status == "active"]
+    if not wagers:
+        flash(request, f"No order found for reference {reference}.", "danger")
+        return RedirectResponse("/cashier", status_code=303)
+    ctx = base_context(request, session, "cashier")
+    ctx.update({
+        "reference": reference,
+        "order_wagers": wagers,
+        "customer": wagers[0].customer,
+        "total_cents": sum(w.amount_cents for w in active),
+        "entries": sum(w.quantity for w in active),
+        "placed_at": min(w.created_at for w in wagers),
+        "operator": wagers[0].operator_id,
+        "all_void": not active,
+    })
+    return render(request, "cashier/receipt.html", ctx)
+
+
+@router.get("/orders")
+def order_lookup(request: Request, session: Session = Depends(get_session), reference: str = ""):
+    """Look up a whole order by its reference code to settle a dispute (POS-05)."""
+    tournament = get_active_tournament(session)
+    if tournament is None:
+        return RedirectResponse("/setup/new", status_code=303)
+    ref = (reference or "").strip().upper()
+    ctx = base_context(request, session, "ledger")
+    ctx["reference"] = ref
+    ctx["order_wagers"] = wager_service.order_wagers(session, tournament.id, ref) if ref else []
+    ctx["searched"] = bool(ref)
+    return render(request, "cashier/order_lookup.html", ctx)
+
+
 @router.post("/cashier/void-order")
 def void_order(
     request: Request,

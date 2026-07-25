@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AuditLog, Customer, Payout, Placement, Player, Team, Tournament, Wager
+from app.models.enums import PayoutStatus
 from app.services import teams as team_service
 
 
@@ -81,6 +82,29 @@ def payouts_csv(session: Session, tournament_id: int) -> str:
     )
 
 
+def call_sheet_csv(session: Session, tournament_id: int) -> str:
+    """Outstanding (unpaid) winners, largest owed first — a phone worklist (RPT-04/06)."""
+    rows = []
+    stmt = (
+        select(Payout).join(Placement, Payout.placement_id == Placement.id)
+        .join(Team, Placement.team_id == Team.id)
+        .where(Team.tournament_id == tournament_id, Payout.status == PayoutStatus.UNPAID)
+        .order_by(Payout.amount_cents.desc())
+    )
+    for p in session.scalars(stmt):
+        rows.append([
+            p.customer.name, p.customer.phone_raw or "", p.customer.email or "",
+            p.placement.player.team.name, p.placement.position,
+            _dollars(p.amount_cents), p.amount_cents,
+            p.contact_status or "", p.contacted_at or "",
+        ])
+    return _csv(
+        ["customer", "phone", "email", "team", "position", "amount", "amount_cents",
+         "last_contact_status", "last_contacted_at"],
+        rows,
+    )
+
+
 def audit_csv(session: Session, tournament_id: int) -> str:
     rows = []
     stmt = select(AuditLog).order_by(AuditLog.id)
@@ -98,6 +122,7 @@ EXPORTERS = {
     "wagers": wagers_csv,
     "player-totals": player_totals_csv,
     "payouts": payouts_csv,
+    "call-sheet": call_sheet_csv,
     "audit": audit_csv,
 }
 

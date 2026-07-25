@@ -13,6 +13,7 @@ from app.routes.deps import base_context
 from app.services import dashboard as dashboard_service
 from app.services import event_package
 from app.services import exports as export_service
+from app.services import payouts as payout_service
 from app.templating import render
 
 router = APIRouter(prefix="/reports")
@@ -116,7 +117,6 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
         return render(request, "reports/handover.html", _handover_context(session, tournament, board, ctx))
 
     if kind == "results":
-        from app.services import payouts as payout_service
         teams = session.scalars(
             select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
         ).all()
@@ -141,6 +141,18 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
             .order_by(Team.id, Placement.position)
         ).all()
         return render(request, "reports/payout_register.html", ctx)
+
+    if kind in ("winner-notices", "call-sheet"):
+        unpaid = session.scalars(
+            select(Payout).join(Placement, Payout.placement_id == Placement.id)
+            .join(Team, Placement.team_id == Team.id)
+            .where(Team.tournament_id == tournament.id, Payout.status == PayoutStatus.UNPAID)
+            .order_by(Payout.amount_cents.desc())
+        ).all()
+        ctx["winners"] = unpaid
+        ctx["contact_statuses"] = payout_service.CONTACT_STATUSES
+        template = "reports/winner_notices.html" if kind == "winner-notices" else "reports/call_sheet.html"
+        return render(request, template, ctx)
 
     # default: team summary
     return render(request, "reports/team_summary.html", ctx)

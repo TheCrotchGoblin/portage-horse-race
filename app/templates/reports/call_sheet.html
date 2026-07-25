@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Outstanding winners{% endblock %}
+{% block content %}
+<div class="no-print d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">{{ tournament.name }} — Outstanding winners</h1>
+    <span class="text-muted small">Largest amount owed first. Work down the list and log who you've reached.</span>
+  </div>
+  <div>
+    <a href="/reports/export/call-sheet" class="btn btn-outline-secondary me-1"><i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV</a>
+    <button class="btn btn-brand" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+  </div>
+</div>
+
+{% if not winners %}
+<div class="alert alert-success">Nothing outstanding — every winner has been paid or closed out.</div>
+{% else %}
+<table class="table table-sm">
+  <thead><tr><th>Customer</th><th>Phone</th><th>Email</th><th>Team / Place</th>
+    <th class="text-end">Owed</th><th>Last contact</th><th class="no-print">Notes</th></tr></thead>
+  <tbody>
+    {% for w in winners %}
+    <tr>
+      <td><strong>{{ w.customer.name }}</strong></td>
+      <td>{{ w.customer.phone_raw or '' }}</td>
+      <td>{{ w.customer.email or '' }}</td>
+      <td>{{ w.placement.player.team.name }} · {{ position_label(w.placement.position) }}</td>
+      <td class="text-end money">{{ w.amount_cents | dollars }}</td>
+      <td>{% if w.contact_status %}{{ contact_statuses.get(w.contact_status, w.contact_status) }}
+        <span class="text-muted small">{{ w.contacted_at | datetime if w.contacted_at }}</span>{% endif %}</td>
+      <td class="no-print" style="min-width:120px">&nbsp;</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot><tr class="fw-bold"><td colspan="4">Total outstanding</td>
+    <td class="text-end money">{{ winners | sum(attribute='amount_cents') | dollars }}</td><td colspan="2"></td></tr></tfoot>
+</table>
+{% endif %}
+{% endblock %}

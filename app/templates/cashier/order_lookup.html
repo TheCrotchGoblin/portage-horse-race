@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Find an order{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Find an order</h1>
+  <a href="/ledger" class="btn btn-outline-secondary"><i class="bi bi-journal-text me-1"></i>Ledger</a>
+</div>
+<p class="text-muted">Type the reference from a customer's receipt (e.g. A7F-0241) to see exactly what they bought.</p>
+
+<form method="get" action="/orders" class="mb-3" style="max-width:420px">
+  <div class="input-group">
+    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+    <input name="reference" class="form-control text-uppercase" value="{{ reference }}" placeholder="A7F-0241" data-autofocus>
+    <button class="btn btn-brand"><i class="bi bi-search me-1"></i>Find</button>
+  </div>
+</form>
+
+{% if searched %}
+  {% if order_wagers %}
+  <div class="card shadow-sm" style="max-width:640px">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Order {{ reference }}</strong>
+      <a href="/cashier/receipt/{{ reference }}" class="btn btn-sm btn-outline-brand"><i class="bi bi-printer me-1"></i>Receipt</a>
+    </div>
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Customer</th><th>Team / Player</th><th class="text-end">Entries</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for w in order_wagers %}
+        <tr class="{{ 'text-muted' if w.status == 'void' }}">
+          <td>{{ w.customer.name }}</td>
+          <td>{{ w.team.name }} · {{ w.player.name }}</td>
+          <td class="text-end">{{ w.quantity }}</td>
+          <td class="text-end money">{{ w.amount_cents | dollars }}</td>
+          <td>{{ 'Voided' if w.status == 'void' else 'Active' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-secondary">No order found for reference <strong>{{ reference }}</strong>.</div>
+  {% endif %}
+{% endif %}
+{% endblock %}

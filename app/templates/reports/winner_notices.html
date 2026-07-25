@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Winner notices{% endblock %}
+{% block content %}
+<div class="no-print d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <a href="/reports" class="btn btn-outline-secondary me-1"><i class="bi bi-arrow-left me-1"></i>Reports</a>
+    <span class="text-muted small">One notice per unpaid winner — print and hand or mail out.</span>
+  </div>
+  <button class="btn btn-brand" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+</div>
+
+{% if not winners %}
+<div class="alert alert-secondary">No unpaid winners — everyone has been paid or closed out.</div>
+{% endif %}
+
+{% for w in winners %}
+<div class="card mb-3 winner-notice">
+  <div class="card-body p-4 text-center">
+    <img src="/static/icon.png" width="52" height="52" alt="">
+    <h1 class="h4 mt-2 mb-1">{{ tournament.name }}</h1>
+    <div class="text-muted mb-3">{{ tournament.event_date or '' }}</div>
+    <h2 class="h3 text-brand">You won! 🎉</h2>
+    <p class="lead mb-1"><strong>{{ w.customer.name }}</strong></p>
+    <p class="mb-3">{{ w.placement.player.team.name }} · {{ position_label(w.placement.position) }} place —
+      {{ w.winning_entries }} winning entrie(s)</p>
+    <div class="money money-xl text-brand mb-3">{{ w.amount_cents | dollars }}</div>
+    <p class="text-muted">Please present this notice at the clubhouse desk to collect your winnings.</p>
+    {% if w.customer.phone_raw or w.customer.email %}
+    <p class="small text-muted mb-0">On file: {{ w.customer.phone_raw or '' }} {{ w.customer.email or '' }}</p>
+    {% endif %}
+  </div>
+</div>
+<div style="page-break-after: always"></div>
+{% endfor %}
+{% endblock %}
