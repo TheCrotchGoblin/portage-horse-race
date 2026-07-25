@@ -1,5 +1,6 @@
 {% for op in players %}
-<form method="post" action="/cashier/cart/add" class="d-flex align-items-center gap-2 py-1 px-2 border-bottom player-row">
+<form method="post" action="/cashier/cart/add" class="d-flex align-items-center gap-2 py-1 px-2 border-bottom player-row"
+      hx-post="/cashier/cart/add" hx-target="#order-card" hx-swap="outerHTML" data-player="{{ op.player.name }}">
   <input type="hidden" name="team_id" value="{{ op.team.id }}">
   <input type="hidden" name="player_id" value="{{ op.player.id }}">
   <div class="flex-grow-1 text-truncate">

@@ -93,6 +93,49 @@ def test_cart_merges_repeat_player_and_removes_line(client):
     assert totals(tid) == (5, 2500)
 
 
+def test_htmx_add_returns_order_partial(client):
+    """An Add with the HX-Request header returns just the order card, not a full page."""
+    make_tournament(client)
+    with new_session() as s:
+        team = s.scalars(select(Team).order_by(Team.id)).first()
+        tid, pid = team.id, _first_player(s, team.id).id
+    client.post("/customers/new", data={"name": "Htmx Backer"})
+    with new_session() as s:
+        cid = s.scalars(select(Customer)).first().id
+    client.get(f"/cashier?customer_id={cid}")
+    r = client.post("/cashier/cart/add",
+                    data={"team_id": tid, "player_id": pid, "quantity": "2"},
+                    headers={"HX-Request": "true"})
+    assert r.status_code == 200
+    assert 'id="order-card"' in r.text
+    assert "<html" not in r.text.lower()  # partial, not the whole page
+    assert "total due" in r.text
+
+
+def test_undo_whole_order_by_reference(client):
+    """One click voids every entry sharing an order reference."""
+    make_tournament(client)
+    with new_session() as s:
+        team = s.scalars(select(Team).order_by(Team.id)).first()
+        players = s.scalars(select(Player).where(Player.team_id == team.id).order_by(Player.id)).all()
+        tid, p1, p2 = team.id, players[0].id, players[1].id
+    client.post("/customers/new", data={"name": "Undo Backer"})
+    with new_session() as s:
+        cid = s.scalars(select(Customer)).first().id
+    client.get(f"/cashier?customer_id={cid}")
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p1, "quantity": "2"})
+    client.post("/cashier/cart/add", data={"team_id": tid, "player_id": p2, "quantity": "3"})
+    client.post("/cashier/checkout", data={"received": "25.00"})
+    assert totals(tid) == (5, 2500)
+
+    with new_session() as s:
+        ref = s.scalars(select(Wager).order_by(Wager.id)).first().reference
+    assert ref
+    r = client.post("/cashier/void-order", data={"reference": ref}, follow_redirects=True)
+    assert "undone" in r.text
+    assert totals(tid) == (0, 0)  # both entries reversed atomically
+
+
 def test_wager_blocked_when_team_closed(client):
     make_tournament(client, open_wagering=False)
     with new_session() as s:

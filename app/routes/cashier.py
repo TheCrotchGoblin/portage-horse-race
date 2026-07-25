@@ -17,7 +17,7 @@ from app.database import get_session
 from app.formatting import cents_to_dollars, dollars_to_cents, int_or_none
 from app.models import Customer, Player, Team
 from app.models.enums import TournamentStatus, WageringStatus
-from app.routes.deps import admin_pin_ok, base_context, operator_name
+from app.routes.deps import admin_pin_ok, base_context, get_active_tournament, operator_name
 from app.services import customers as customer_service
 from app.services import teams as team_service
 from app.services import wagers as wager_service
@@ -85,6 +85,19 @@ def _cart_view(session: Session, tournament, cart: dict) -> tuple[list[dict], in
     return rows, total, entries
 
 
+def _order_partial(request: Request, session: Session, tournament, cart: dict):
+    """Render just the Order card — the HTMX swap target on add/remove so the
+    player search box keeps its focus, text and scroll (no full page reload)."""
+    selected_customer = session.get(Customer, cart["customer_id"]) if cart["customer_id"] else None
+    rows, total, entries = _cart_view(session, tournament, cart)
+    ctx = base_context(request, session, "cashier")
+    ctx.update({
+        "selected_customer": selected_customer,
+        "cart_rows": rows, "cart_total": total, "cart_entries": entries,
+    })
+    return render(request, "cashier/_order.html", ctx)
+
+
 # --- screen ----------------------------------------------------------------
 
 @router.get("/cashier")
@@ -119,6 +132,7 @@ def cashier(request: Request, session: Session = Depends(get_session), customer_
         "cart_entries": entries,
         "recent": wager_service.recent(session, tournament.id, limit=8),
         "last_customer": request.session.get("last_customer") if selected_customer is None else None,
+        "last_order": request.session.get("last_order"),
     })
     return render(request, "cashier/index.html", ctx)
 
@@ -175,16 +189,21 @@ def cart_add(
     else:
         cart["lines"].append({"team_id": tid, "player_id": pid, "quantity": qty})
     _save_cart(request, cart)
+    if request.headers.get("HX-Request"):
+        return _order_partial(request, session, get_active_tournament(session), cart)
     return RedirectResponse("/cashier", status_code=303)
 
 
 @router.post("/cashier/cart/remove")
-def cart_remove(request: Request, index: str = Form("")):
+def cart_remove(request: Request, session: Session = Depends(get_session), index: str = Form("")):
     cart = _get_cart(request)
     i = int_or_none(index)
     if i is not None and 0 <= i < len(cart["lines"]):
         cart["lines"].pop(i)
     _save_cart(request, cart)
+    if request.headers.get("HX-Request"):
+        tournament = get_active_tournament(session)
+        return _order_partial(request, session, tournament, cart)
     return RedirectResponse("/cashier", status_code=303)
 
 
@@ -237,7 +256,41 @@ def checkout(request: Request, session: Session = Depends(get_session), received
     customer = session.get(Customer, cart["customer_id"])
     request.session["cart"] = {"customer_id": None, "lines": []}
     request.session["last_customer"] = {"id": cart["customer_id"], "name": customer.name if customer else ""}
+    # Remember the just-placed order so it can be undone in one click (POS-08).
+    request.session["last_order"] = {
+        "reference": reference, "entries": entries, "total_cents": total,
+        "customer": customer.name if customer else "",
+    }
     flash(request, f"Recorded {entries} entrie(s) — {cents_to_dollars(total)}. Reference {reference}. Ready for the next customer.")
+    return RedirectResponse("/cashier", status_code=303)
+
+
+@router.post("/cashier/void-order")
+def void_order(
+    request: Request,
+    session: Session = Depends(get_session),
+    reference: str = Form(...),
+    reason: str = Form("Order cancelled at the till"),
+    admin_pin: str = Form(""),
+):
+    """Undo a whole order (all entries under one reference) in one click."""
+    tournament = get_active_tournament(session)
+    if tournament is None:
+        return RedirectResponse("/setup/new", status_code=303)
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN — the order was not undone.", "danger")
+        return RedirectResponse("/cashier", status_code=303)
+    try:
+        count = wager_service.void_by_reference(
+            session, tournament.id, reference,
+            reason=(reason or "Order cancelled at the till"), operator=operator_name(request))
+    except WagerError as exc:
+        flash(request, str(exc), "danger")
+        return RedirectResponse("/cashier", status_code=303)
+    last = request.session.get("last_order")
+    if last and last.get("reference") == reference:
+        request.session.pop("last_order", None)
+    flash(request, f"Order {reference} undone — {count} entrie(s) voided. Totals updated.")
     return RedirectResponse("/cashier", status_code=303)
 
 

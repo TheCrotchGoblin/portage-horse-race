@@ -66,8 +66,10 @@
       <div class="card-header"><strong>2. Add entries</strong>
         <span class="text-muted small">search a player, set how many, press Add — repeat for as many players as you like</span></div>
       <div class="card-body">
-        <input class="form-control mb-2" placeholder="Search player by name…"
-               name="q" hx-get="/cashier/players" hx-trigger="keyup changed delay:150ms" hx-target="#player-list">
+        <input class="form-control mb-2" placeholder="Search player by name…  (press / to jump here)"
+               id="player-search" name="q"
+               hx-get="/cashier/players" hx-trigger="keyup changed delay:150ms" hx-target="#player-list">
+        <div class="form-text mb-2"><kbd>/</kbd> search · <kbd>Enter</kbd> add first match · <kbd>F2</kbd> record payment · <kbd>Esc</kbd> new sale</div>
         <div id="player-list" style="max-height: 460px; overflow-y: auto;" class="border rounded">
           {% include "cashier/_players.html" %}
         </div>
@@ -78,52 +80,20 @@
 
   <!-- RIGHT: order + payment -->
   <div class="col-lg-5">
-    <div class="card shadow-sm mb-3">
-      <div class="card-header bg-brand text-white"><strong>Order</strong>
-        {% if selected_customer %}<span class="small">for {{ selected_customer.name }}</span>{% endif %}</div>
-      <div class="card-body">
-        {% if cart_rows %}
-        <table class="table table-sm align-middle mb-2">
-          <thead><tr><th>Player</th><th class="text-end">Entries</th><th class="text-end">Subtotal</th><th></th></tr></thead>
-          <tbody>
-            {% for row in cart_rows %}
-            <tr>
-              <td>{{ row.player.name }}<div class="text-muted small">{{ row.team.name }}</div></td>
-              <td class="text-end">{{ row.quantity }} × {{ tournament.entry_price_cents | dollars }}</td>
-              <td class="text-end money">{{ row.subtotal | dollars }}</td>
-              <td class="text-end">
-                <form method="post" action="/cashier/cart/remove" class="m-0">
-                  <input type="hidden" name="index" value="{{ row.index }}">
-                  <button class="btn-close btn-sm" title="Remove"></button></form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <span class="text-muted">{{ cart_entries }} entries — total due</span>
-          <span class="money money-xl text-brand">{{ cart_total | dollars }}</span>
-        </div>
-        <form method="post" action="/cashier/checkout">
-          <label class="form-label small">Cash received</label>
-          <div class="input-group mb-2"><span class="input-group-text">$</span>
-            <input name="received" id="received" class="form-control"
-                   value="{{ '%.2f' % (cart_total/100) }}" data-due="{{ cart_total }}" oninput="updateChange()"></div>
-          <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted">Change due</span><span class="money" id="change-due">$0.00</span>
-          </div>
-          <button class="btn btn-success btn-lg w-100"
-                  data-confirm="Record {{ cart_entries }} entrie(s) for {{ selected_customer.name }} — {{ cart_total | dollars }}?">
-            <i class="bi bi-check-circle me-2"></i>Record payment
-          </button>
-        </form>
-        {% elif selected_customer %}
-        <p class="text-muted text-center my-4">No entries yet. Search a player on the left and press <strong>Add</strong>.</p>
-        {% else %}
-        <p class="text-muted text-center my-4">Choose a customer to start an order.</p>
-        {% endif %}
-      </div>
-    </div>
+    {% if last_order and not selected_customer %}
+    <form method="post" action="/cashier/void-order" class="alert alert-success d-flex justify-content-between align-items-center py-2 mb-3"
+          data-confirm="Undo order {{ last_order.reference }} ({{ last_order.entries }} entrie(s), {{ last_order.total_cents | dollars }}) for {{ last_order.customer }}?">
+      <span class="small"><i class="bi bi-check-circle me-1"></i>Recorded {{ last_order.reference }} —
+        {{ last_order.entries }} entrie(s), {{ last_order.total_cents | dollars }}</span>
+      <span class="d-flex gap-1">
+        <input class="form-control form-control-sm" style="width:110px" name="admin_pin" placeholder="Admin PIN">
+        <input type="hidden" name="reference" value="{{ last_order.reference }}">
+        <button class="btn btn-sm btn-outline-danger text-nowrap"><i class="bi bi-arrow-counterclockwise me-1"></i>Undo order</button>
+      </span>
+    </form>
+    {% endif %}
+
+    {% include "cashier/_order.html" %}
 
     <!-- Recent activity -->
     <div class="card shadow-sm">
@@ -163,16 +133,72 @@
 </div>
 
 <script>
+function receivedDue() {
+  var el = document.getElementById('received');
+  return el ? (parseInt(el.getAttribute('data-due'), 10) || 0) : 0;
+}
 function updateChange() {
   var el = document.getElementById('received');
   if (!el) return;
-  var due = parseInt(el.getAttribute('data-due'), 10) || 0;
+  var due = receivedDue();
   var received = Math.round(parseFloat(el.value.replace(/[$,]/g, '')) * 100) || 0;
   var change = received - due;
   var out = document.getElementById('change-due');
-  out.textContent = (change < 0 ? '-$' : '$') + (Math.abs(change) / 100).toFixed(2);
-  out.className = 'money ' + (change < 0 ? 'text-danger' : 'text-success');
+  if (out) {
+    out.textContent = (change < 0 ? '-$' : '$') + (Math.abs(change) / 100).toFixed(2);
+    out.className = 'money ' + (change < 0 ? 'text-danger' : 'text-success');
+  }
 }
+// Quick-tender: fill "Cash received" and recompute change in one tap.
+function tender(kind) {
+  var el = document.getElementById('received');
+  if (!el) return;
+  var due = receivedDue();
+  var cents;
+  if (kind === 'exact') cents = due;
+  else if (kind === 'up20') cents = Math.ceil(due / 2000) * 2000 || 2000;
+  else cents = kind;
+  el.value = (cents / 100).toFixed(2);
+  updateChange();
+}
+// Re-run change math after the Order card is swapped in by HTMX.
 document.addEventListener('DOMContentLoaded', updateChange);
+document.body.addEventListener('htmx:afterSwap', function (e) {
+  if (e.target && e.target.id === 'order-card') {
+    updateChange();
+    var s = document.getElementById('player-search');
+    if (s) { s.focus(); s.select(); }   // ready for the next golfer, no reload
+  }
+});
+// Fat-finger guard: confirm any single Add of 10+ entries before it posts.
+document.body.addEventListener('htmx:confirm', function (e) {
+  var form = e.target.closest ? e.target.closest('form') : null;
+  if (!form || !form.getAttribute('hx-post') || form.getAttribute('hx-post').indexOf('/cart/add') < 0) return;
+  var qty = parseInt((form.querySelector('[name=quantity]') || {}).value, 10) || 0;
+  var name = (form.getAttribute('data-player') || 'this player');
+  if (qty >= 10) {
+    e.preventDefault();
+    if (window.confirm('Add ' + qty + ' entries ($' + (qty * {{ tournament.entry_price_cents }} / 100).toFixed(2) + ') for ' + name + '?')) {
+      e.detail.issueRequest(true);
+    }
+  }
+});
+// Keyboard shortcuts for a fast till (POS-01).
+document.addEventListener('keydown', function (e) {
+  var t = e.target, tag = (t.tagName || '').toLowerCase();
+  if (e.key === '/' && tag !== 'input' && tag !== 'textarea') {
+    var s = document.getElementById('player-search') || document.querySelector('[data-autofocus]');
+    if (s) { e.preventDefault(); s.focus(); s.select && s.select(); }
+  } else if (e.key === 'F2') {
+    var f = document.getElementById('checkout-form');
+    if (f) { e.preventDefault(); f.requestSubmit(); }
+  } else if (e.key === 'Escape') {
+    var reset = document.querySelector('form[action="/cashier/reset"]');
+    if (reset) { e.preventDefault(); reset.requestSubmit(); }
+  } else if (e.key === 'Enter' && t.id === 'player-search') {
+    var firstAdd = document.querySelector('#player-list form button');
+    if (firstAdd) { e.preventDefault(); firstAdd.click(); }
+  }
+});
 </script>
 {% endblock %}

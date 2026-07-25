@@ -142,6 +142,44 @@ def void_wager(
     return wager
 
 
+def void_by_reference(
+    session: Session,
+    tournament_id: int,
+    reference: str,
+    *,
+    reason: str,
+    operator: str | None = None,
+) -> int:
+    """Void every active wager in one order (shared reference) atomically.
+
+    Powers the cashier "undo last order" one-click fix (POS-08 extended). Returns
+    the number of wagers voided. Raises WagerError if any can't be voided (e.g.
+    payouts already generated) — nothing is voided in that case.
+    """
+    if not (reference or "").strip():
+        raise WagerError("An order reference is required.")
+    wagers = list(session.scalars(
+        select(Wager).where(
+            Wager.tournament_id == tournament_id,
+            Wager.reference == reference,
+            Wager.status == WagerStatus.ACTIVE,
+        )
+    ).all())
+    if not wagers:
+        raise WagerError("That order was not found, or it has already been voided.")
+    for w in wagers:
+        void_wager(session, w, reason=reason, operator=operator)
+    return len(wagers)
+
+
+def order_wagers(session: Session, tournament_id: int, reference: str) -> list[Wager]:
+    """All wagers (any status) sharing an order reference — for lookup/dispute."""
+    return list(session.scalars(
+        select(Wager).where(Wager.tournament_id == tournament_id, Wager.reference == reference)
+        .order_by(Wager.id)
+    ).all())
+
+
 def recent(session: Session, tournament_id: int, limit: int = 10) -> list[Wager]:
     return list(
         session.scalars(
