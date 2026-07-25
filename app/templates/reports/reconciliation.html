@@ -21,6 +21,7 @@
       <tr><td class="ps-4">Paid</td><td class="text-end money">{{ r.totals.paid | dollars }}</td></tr>
       <tr><td class="ps-4">Unpaid</td><td class="text-end money">{{ r.totals.unpaid | dollars }}</td></tr>
       {% if r.totals.reversed %}<tr><td class="ps-4">Reversed</td><td class="text-end money">{{ r.totals.reversed | dollars }}</td></tr>{% endif %}
+      {% if r.totals.waived %}<tr><td class="ps-4">Waived / donated</td><td class="text-end money">{{ r.totals.waived | dollars }}</td></tr>{% endif %}
       <tr><td class="ps-4 fw-semibold">Still owed</td><td class="text-end money fw-semibold">{{ r.totals.outstanding | dollars }}</td></tr>
       {% if r.unclaimed %}
       <tr class="table-warning"><th>Unclaimed pool (needs disposition)</th><td class="text-end money">{{ r.unclaimed | dollars }}</td></tr>
@@ -48,6 +49,7 @@
       <tr><th>Total prize pools</th><td class="text-end money">{{ grand.pool | dollars }}</td></tr>
       <tr><th>Total payouts generated</th><td class="text-end money">{{ grand.generated | dollars }}</td></tr>
       <tr><th>Paid</th><td class="text-end money">{{ grand.paid | dollars }}</td></tr>
+      {% if grand.waived %}<tr><th>Waived / donated</th><td class="text-end money">{{ grand.waived | dollars }}</td></tr>{% endif %}
       <tr><th>Still owed (unpaid{% if grand.reversed %} + reversed{% endif %})</th><td class="text-end money">{{ grand.outstanding | dollars }}</td></tr>
       <tr class="fw-bold"><td>Check: club + prize pools = gross?</td>
         <td class="text-end">{{ 'BALANCED ✓' if (grand.club + grand.pool) == grand.gross else 'REVIEW' }}</td></tr>

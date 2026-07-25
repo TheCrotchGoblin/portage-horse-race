@@ -32,6 +32,23 @@ def test_backup_verify_and_prune(client, settings):
     assert len(milestones) == 1                      # milestone kept
 
 
+def test_milestone_reasons_survive_pruning(client, settings):
+    """Regression: settlement_package / pre_restore (underscore reasons) must be
+    classified as milestones and never auto-pruned (BKP-06)."""
+    bdir = settings.backup_dir
+    make_tournament(client)
+    settlement = backup_service.backup_database(settings.db_path, bdir, reason="settlement_package")
+    prerestore = backup_service.backup_database(settings.db_path, bdir, reason="pre_restore")
+    assert backup_service._reason_of(settlement) == "settlement_package"
+    assert backup_service._reason_of(prerestore) == "pre_restore"
+    # Flood with routine backups; milestones must remain.
+    for _ in range(30):
+        backup_service.backup_database(settings.db_path, bdir, reason="autosave")
+    remaining = {p.name for p in backup_service.list_backups(bdir)}
+    assert settlement.name in remaining
+    assert prerestore.name in remaining
+
+
 def test_backup_verify_raises_on_corrupt(client, settings):
     make_tournament(client)
     corrupt = settings.backup_dir / "horse_race_20200101_000000_manual.sqlite3"

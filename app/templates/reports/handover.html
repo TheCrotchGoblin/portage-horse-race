@@ -20,6 +20,7 @@
       <tr class="table-success"><th>Club keeps (to deposit)</th><td class="text-end money fw-bold">{{ hand.club | dollars }}</td></tr>
       <tr><th>Prize pool (all teams)</th><td class="text-end money">{{ hand.pool | dollars }}</td></tr>
       <tr><td class="ps-4">Prize money paid to winners</td><td class="text-end money">{{ hand.paid | dollars }}</td></tr>
+      {% if hand.waived %}<tr><td class="ps-4">Waived / donated to the club</td><td class="text-end money">{{ hand.waived | dollars }}</td></tr>{% endif %}
       <tr class="{{ 'table-warning' if hand.outstanding }}"><td class="ps-4">Still owed to winners</td>
         <td class="text-end money fw-semibold">{{ hand.outstanding | dollars }}</td></tr>
     </table>

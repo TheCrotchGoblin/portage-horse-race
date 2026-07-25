@@ -112,6 +112,26 @@ def test_htmx_add_returns_order_partial(client):
     assert "total due" in r.text
 
 
+def test_htmx_add_error_uses_hx_redirect(client):
+    """Regression: an HTMX Add that fails must NOT return a 303 (whose full page
+    HTMX would inject into #order-card) — it returns HX-Redirect for a real nav."""
+    make_tournament(client)
+    with new_session() as s:
+        team = s.scalars(select(Team).order_by(Team.id)).first()
+        tid, pid = team.id, _first_player(s, team.id).id
+    client.post("/customers/new", data={"name": "Hx Err"})
+    with new_session() as s:
+        cid = s.scalars(select(Customer)).first().id
+    client.get(f"/cashier?customer_id={cid}")
+    client.post("/setup/close")  # close wagering so the add is rejected
+    r = client.post("/cashier/cart/add",
+                    data={"team_id": tid, "player_id": pid, "quantity": "1"},
+                    headers={"HX-Request": "true"}, follow_redirects=False)
+    assert r.status_code == 204
+    assert r.headers.get("HX-Redirect") == "/cashier"
+    assert "<html" not in r.text.lower()
+
+
 def test_undo_whole_order_by_reference(client):
     """One click voids every entry sharing an order reference."""
     make_tournament(client)
@@ -134,6 +154,41 @@ def test_undo_whole_order_by_reference(client):
     r = client.post("/cashier/void-order", data={"reference": ref}, follow_redirects=True)
     assert "undone" in r.text
     assert totals(tid) == (0, 0)  # both entries reversed atomically
+
+
+def test_undo_order_is_atomic_across_teams(client):
+    """Regression: if part of an order can't be voided (payouts generated for one
+    team), NOTHING is voided — no partial commit."""
+    make_tournament(client)
+    with new_session() as s:
+        teams = s.scalars(select(Team).order_by(Team.id)).all()
+        ta, tb = teams[0].id, teams[1].id
+        pa = _first_player(s, ta).id
+        pb = _first_player(s, tb).id
+    client.post("/customers/new", data={"name": "Cross Team"})
+    with new_session() as s:
+        cid = s.scalars(select(Customer)).first().id
+    # One order spanning both teams (same reference).
+    client.get(f"/cashier?customer_id={cid}")
+    client.post("/cashier/cart/add", data={"team_id": ta, "player_id": pa, "quantity": "2"})
+    client.post("/cashier/cart/add", data={"team_id": tb, "player_id": pb, "quantity": "3"})
+    client.post("/cashier/checkout", data={"received": "25.00"})
+    with new_session() as s:
+        ref = s.scalars(select(Wager).order_by(Wager.id)).first().reference
+
+    # Generate payouts for team B only -> voiding B is now blocked.
+    with new_session() as s:
+        pbs = [p.id for p in s.scalars(select(Player).where(Player.team_id == tb).order_by(Player.id)).all()]
+    client.post(f"/results/{tb}/placements",
+                data={"first_player_id": pbs[0], "second_player_id": pbs[1], "third_player_id": pbs[2]})
+    client.post("/setup/close", data={"team_id": tb})
+    client.post(f"/results/{tb}/generate")
+
+    # Undo the whole order — must fail and leave BOTH entries active (atomic).
+    r = client.post("/cashier/void-order", data={"reference": ref}, follow_redirects=True)
+    assert "already been generated" in r.text or "danger" in r.text
+    assert totals(ta) == (2, 1000)  # team A entry NOT voided
+    assert totals(tb) == (3, 1500)  # team B entry NOT voided
 
 
 def test_wager_blocked_when_team_closed(client):

@@ -63,10 +63,11 @@ def backup_database(db_path: Path, backup_dir: Path, *, reason: str = "manual",
 
 
 def _reason_of(path: Path) -> str:
-    # horse_race_<ts1>_<ts2>_<reason>.sqlite3  ->  reason
-    stem = path.stem  # horse_race_YYYYMMDD_HHMMSS_reason
-    parts = stem.split("_")
-    return parts[-1] if len(parts) >= 4 else ""
+    # horse_race_<YYYYMMDD>_<HHMMSS>_<reason...>.sqlite3  ->  reason
+    # The reason itself can contain underscores (settlement_package, pre_restore),
+    # so join everything after the two timestamp fields — NOT just the last token.
+    parts = path.stem.split("_")  # ['horse','race',date,time,reason...]
+    return "_".join(parts[4:]) if len(parts) >= 5 else ""
 
 
 def prune_backups(backup_dir: Path, *, keep_auto: int = 20) -> list[Path]:

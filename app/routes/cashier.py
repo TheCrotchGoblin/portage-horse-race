@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -186,23 +186,27 @@ def cart_add(
     player_id: str = Form(""),
     quantity: str = Form("1"),
 ):
+    def err(msg: str):
+        # For an HTMX add, a 303 would get its whole page swapped into #order-card.
+        # Send HX-Redirect so the browser does a real navigation and shows the flash.
+        flash(request, msg, "danger")
+        if request.headers.get("HX-Request"):
+            return Response(status_code=204, headers={"HX-Redirect": "/cashier"})
+        return RedirectResponse("/cashier", status_code=303)
+
     cart = _get_cart(request)
     if not cart["customer_id"]:
-        flash(request, "Choose a customer first.", "danger")
-        return RedirectResponse("/cashier", status_code=303)
+        return err("Choose a customer first.")
     tid, pid, qty = int_or_none(team_id), int_or_none(player_id), int_or_none(quantity)
     if not (tid and pid and qty and qty >= 1):
-        flash(request, "Pick a player and a quantity of at least 1.", "danger")
-        return RedirectResponse("/cashier", status_code=303)
+        return err("Pick a player and a quantity of at least 1.")
 
     team = session.get(Team, tid)
     player = session.get(Player, pid)
     if team is None or player is None or player.team_id != tid:
-        flash(request, "That player was not found on that team.", "danger")
-        return RedirectResponse("/cashier", status_code=303)
+        return err("That player was not found on that team.")
     if team.wagering_status != WageringStatus.OPEN:
-        flash(request, f"Wagering is closed for {team.name}.", "danger")
-        return RedirectResponse("/cashier", status_code=303)
+        return err(f"Wagering is closed for {team.name}.")
 
     for ln in cart["lines"]:  # merge repeat picks of the same player
         if ln["player_id"] == pid:
@@ -347,6 +351,7 @@ def void_order(
             session, tournament.id, reference,
             reason=(reason or "Order cancelled at the till"), operator=operator_name(request))
     except WagerError as exc:
+        session.rollback()  # keep the undo atomic — no partial voids are committed
         flash(request, str(exc), "danger")
         return RedirectResponse("/cashier", status_code=303)
     last = request.session.get("last_order")

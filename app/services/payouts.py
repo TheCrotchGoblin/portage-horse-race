@@ -467,6 +467,16 @@ def settlement_status_blockers(session: Session, tournament: Tournament) -> list
     undisposed = [p for p in unclaimed_placements(session, tournament.id) if p.disposition is None]
     if undisposed:
         reasons.append(f"{len(undisposed)} unclaimed pool(s) need a decision.")
+    # Every team must have been through payout generation (check_settled requires
+    # this too — otherwise blockers could read empty while the event won't settle).
+    teams_total = session.scalar(
+        select(func.count(Team.id)).where(Team.tournament_id == tournament.id)) or 0
+    teams_generated = session.scalar(
+        select(func.count(func.distinct(Placement.team_id)))
+        .join(Team, Placement.team_id == Team.id)
+        .where(Team.tournament_id == tournament.id, Placement.payouts_generated_at.is_not(None))) or 0
+    if teams_total and teams_total != teams_generated:
+        reasons.append(f"{teams_total - teams_generated} team(s) still need payouts generated.")
     for team in cash_service.unexplained_variance_teams(session, tournament.id):
         reasons.append(f"{team.name}'s cash box is over/short — count it and note why.")
     return reasons

@@ -40,13 +40,15 @@ def _payout_totals(session: Session, team_id: int) -> dict:
     unpaid = by.get(PayoutStatus.UNPAID, 0)
     reversed_ = by.get(PayoutStatus.REVERSED, 0)
     held = by.get(PayoutStatus.HELD, 0)
+    waived = by.get(PayoutStatus.WAIVED, 0)
     return {
-        # generated = paid + unpaid + reversed + held  (self-consistent breakdown)
-        "generated": paid + unpaid + reversed_ + held,
+        # generated = paid + unpaid + reversed + held + waived  (self-consistent)
+        "generated": paid + unpaid + reversed_ + held + waived,
         "paid": paid,
         "unpaid": unpaid,
         "reversed": reversed_,
         "held": held,
+        "waived": waived,
         # money not currently in a winner's hands (still owed / to resolve)
         "outstanding": unpaid + reversed_ + held,
     }
@@ -81,7 +83,7 @@ def reconciliation_text(session: Session, tournament: Tournament) -> str:
         "=" * 56,
         "",
     ]
-    grand = {k: 0 for k in ("gross", "club", "pool", "generated", "paid", "unpaid", "reversed", "held", "outstanding")}
+    grand = {k: 0 for k in ("gross", "club", "pool", "generated", "paid", "unpaid", "reversed", "held", "waived", "outstanding")}
     teams = session.scalars(select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)).all()
     for team in teams:
         fin = team_service.team_financials(session, team.id, tournament)
@@ -100,6 +102,8 @@ def reconciliation_text(session: Session, tournament: Tournament) -> str:
             lines.append(f"    Reversed         {cents_to_dollars(pt['reversed']):>14}")
         if pt["held"]:
             lines.append(f"    Held             {cents_to_dollars(pt['held']):>14}")
+        if pt.get("waived"):
+            lines.append(f"    Waived/donated   {cents_to_dollars(pt['waived']):>14}")
         lines += [
             f"    Still owed       {cents_to_dollars(pt['outstanding']):>14}  (unpaid + reversed + held)",
             f"  Check (club+pool)  {cents_to_dollars(fin.club_share_cents + fin.prize_pool_cents):>14}  "
@@ -119,6 +123,10 @@ def reconciliation_text(session: Session, tournament: Tournament) -> str:
         f"  Total prize pools  {cents_to_dollars(grand['pool']):>14}",
         f"  Payouts generated  {cents_to_dollars(grand['generated']):>14}",
         f"  Paid               {cents_to_dollars(grand['paid']):>14}",
+    ]
+    if grand["waived"]:
+        lines.append(f"  Waived/donated     {cents_to_dollars(grand['waived']):>14}")
+    lines += [
         f"  Still owed         {cents_to_dollars(grand['outstanding']):>14}  (unpaid {cents_to_dollars(grand['unpaid'])}"
         + (f" + reversed {cents_to_dollars(grand['reversed'])}" if grand['reversed'] else "")
         + (f" + held {cents_to_dollars(grand['held'])}" if grand['held'] else "") + ")",
@@ -140,9 +148,15 @@ def reconciliation_text(session: Session, tournament: Tournament) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _blurb_for(name: str) -> str:
+    if name.startswith("database_backup/"):
+        return "A full copy of the database at settlement — for a technician if ever needed."
+    return _FILE_BLURB.get(name, "")
+
+
 def _open_me_html(tournament: Tournament, fingerprint: str, files: dict[str, bytes]) -> str:
     rows = "\n".join(
-        f"      <tr><td><code>{name}</code></td><td>{_FILE_BLURB.get(name, '')}</td></tr>"
+        f"      <tr><td><code>{name}</code></td><td>{_blurb_for(name)}</td></tr>"
         for name in sorted(files) if name not in ("OPEN_ME.html",)
     )
     return f"""<!doctype html><html><head><meta charset="utf-8"><title>{tournament.name} — settlement package</title>

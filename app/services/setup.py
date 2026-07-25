@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Player, Team, Tournament, Wager
-from app.models.enums import TournamentStatus, WageringStatus
+from app.models.enums import TournamentStatus, WageringStatus, WagerStatus
 from app.services import audit
 
 
@@ -192,7 +192,10 @@ def move_player(session: Session, player: Player, target_team: Team) -> None:
     wagers belong to the team they were sold under (moving would misattribute money)."""
     if player.team_id == target_team.id:
         return
-    count = session.scalar(select(func.count(Wager.id)).where(Wager.player_id == player.id)) or 0
+    # Only ACTIVE wagers pin a player to their team (a voided wager keeps its own
+    # team snapshot and attributes no money, so it shouldn't dead-end a move).
+    count = session.scalar(select(func.count(Wager.id)).where(
+        Wager.player_id == player.id, Wager.status == WagerStatus.ACTIVE)) or 0
     if count:
         raise SetupError(f"'{player.name}' already has wagers, so they can't be moved. Void those wagers first.")
     clash = session.scalar(

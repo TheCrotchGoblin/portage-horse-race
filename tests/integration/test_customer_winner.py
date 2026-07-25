@@ -88,6 +88,19 @@ def test_waive_closes_out_and_clears_outstanding(client):
     assert "Waived" in page
 
 
+def test_waived_money_shows_in_reconciliation_not_unclaimed(client):
+    """Regression: a waived payout must appear as 'Waived/donated', NOT be
+    mislabelled as an unclaimed pool needing a decision."""
+    tid, p = _generate_one_team_payouts(client)
+    with database.SessionLocal() as s:
+        target = s.scalars(select(Payout).where(Payout.status == PayoutStatus.UNPAID)).first().id
+    client.post(f"/payouts/{target}/waive", data={"kind": "donated", "reason": "unreachable"})
+    recon = client.get("/reports/print/reconciliation").text
+    assert "Waived / donated" in recon
+    hand = client.get("/reports/print/handover").text
+    assert "Waived / donated" in hand
+
+
 def test_winner_notices_and_call_sheet(client):
     _generate_one_team_payouts(client)
     r = client.get("/reports/print/winner-notices")

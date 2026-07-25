@@ -31,9 +31,13 @@ def _payout_totals(session: Session, team_id: int) -> dict:
     unpaid = by_status.get(PayoutStatus.UNPAID, {}).get("cents", 0)
     reversed_ = by_status.get(PayoutStatus.REVERSED, {}).get("cents", 0)
     held = by_status.get(PayoutStatus.HELD, {}).get("cents", 0)
+    waived = by_status.get(PayoutStatus.WAIVED, {}).get("cents", 0)
     return {
-        "generated": paid + unpaid + reversed_ + held,  # self-consistent breakdown
-        "paid": paid, "unpaid": unpaid, "reversed": reversed_, "held": held,
+        # A winner existed for every generated payout, so WAIVED belongs in the
+        # generated total (it just isn't outstanding). Keeping it here stops the
+        # reconciliation mislabelling waived money as an unclaimed pool.
+        "generated": paid + unpaid + reversed_ + held + waived,
+        "paid": paid, "unpaid": unpaid, "reversed": reversed_, "held": held, "waived": waived,
         "outstanding": unpaid + reversed_ + held,
         "by_status": by_status,
     }
@@ -48,6 +52,7 @@ def _handover_context(session: Session, tournament, board, ctx: dict) -> dict:
     pool = sum(c.financials.prize_pool_cents for c in board.cards)
     paid = sum(t["paid"] for t in totals)
     outstanding = sum(t["outstanding"] for t in totals)
+    waived = sum(t["waived"] for t in totals)
     cash_paid = sum(c.drawer.cash_paid_out_cents for c in board.cards)
     float_total = sum(c.drawer.opening_float_cents for c in board.cards)
     any_counted = any(c.drawer.counted for c in board.cards)
@@ -56,6 +61,7 @@ def _handover_context(session: Session, tournament, board, ctx: dict) -> dict:
         "club": club,               # club's share, to deposit
         "pool": pool,
         "paid": paid,               # total prize money paid (any method)
+        "waived": waived,           # closed out (waived / donated to club)
         "outstanding": outstanding,  # still owed to winners
         "float": float_total,
         "cash_paid": cash_paid,      # prize money paid from the box in cash
@@ -102,6 +108,7 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
             "paid": sum(r["totals"]["paid"] for r in recon),
             "unpaid": sum(r["totals"]["unpaid"] for r in recon),
             "reversed": sum(r["totals"]["reversed"] for r in recon),
+            "waived": sum(r["totals"]["waived"] for r in recon),
             "outstanding": sum(r["totals"]["outstanding"] for r in recon),
             # Cash drawer roll-up
             "float": sum(c.drawer.opening_float_cents for c in board.cards),
