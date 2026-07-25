@@ -32,6 +32,13 @@
 </div>
 {% endif %}
 
+{% if settle_blockers and not event_settled %}
+<div class="alert alert-info py-2">
+  <strong><i class="bi bi-info-circle me-1"></i>Before this event can be marked settled:</strong>
+  <ul class="mb-0 small">{% for b in settle_blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
 {% if unclaimed %}
 <div class="card border-warning shadow-sm mb-4">
   <div class="card-header bg-warning-subtle"><strong><i class="bi bi-exclamation-triangle me-1"></i>Unclaimed pools — need a decision</strong></div>

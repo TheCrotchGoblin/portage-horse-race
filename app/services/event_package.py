@@ -19,6 +19,7 @@ from app.formatting import cents_to_dollars
 from app.models import Payout, Placement, Player, Team, Tournament
 from app.models.enums import PayoutStatus
 from app.services import backups, exports
+from app.services import cash as cash_service
 from app.services import teams as team_service
 
 
@@ -122,6 +123,19 @@ def reconciliation_text(session: Session, tournament: Tournament) -> str:
         + (f" + reversed {cents_to_dollars(grand['reversed'])}" if grand['reversed'] else "")
         + (f" + held {cents_to_dollars(grand['held'])}" if grand['held'] else "") + ")",
         f"  Balanced?          {'YES' if grand['club'] + grand['pool'] == grand['gross'] else 'REVIEW'}",
+    ]
+
+    # Cash-drawer roll-up: float + cash in - cash paid out = cash on hand.
+    float_total = sum(cash_service.opening_float(session, t.id) for t in teams)
+    cash_paid = sum(cash_service.cash_paid_out(session, t.id) for t in teams)
+    expected_cash = float_total + grand["gross"] - cash_paid
+    lines += [
+        "",
+        "  CASH BOX (all teams)",
+        f"    Opening float    {cents_to_dollars(float_total):>14}",
+        f"    Cash taken in    {cents_to_dollars(grand['gross']):>14}",
+        f"    Cash paid out    {cents_to_dollars(cash_paid):>14}",
+        f"    Should be on hand{cents_to_dollars(expected_cash):>14}",
     ]
     return "\n".join(lines) + "\n"
 

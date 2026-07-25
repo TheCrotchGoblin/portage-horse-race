@@ -67,6 +67,9 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "disposition_by": "VARCHAR(120)",
         "disposition_at": "DATETIME",
     },
+    "cash_counts": {
+        "kind": "VARCHAR(16) DEFAULT 'count'",
+    },
 }
 
 

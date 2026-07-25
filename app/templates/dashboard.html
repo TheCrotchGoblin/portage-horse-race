@@ -76,25 +76,50 @@
             <tr><td class="ps-4">1st place pool</td><td class="text-end money">{{ card.financials.first_pool_cents | dollars }}</td></tr>
             <tr><td class="ps-4">2nd place pool</td><td class="text-end money">{{ card.financials.second_pool_cents | dollars }}</td></tr>
             <tr><td class="ps-4">3rd place pool</td><td class="text-end money">{{ card.financials.third_pool_cents | dollars }}</td></tr>
-            {% if card.counted_cents is not none %}
-            <tr class="{{ 'table-warning' if card.variance_cents != 0 }}">
-              <th>Cash counted</th>
-              <td class="text-end money">{{ card.counted_cents | dollars }}
-                ({{ 'over' if card.variance_cents > 0 else 'short' if card.variance_cents < 0 else 'exact' }}
-                {{ card.variance_cents | dollars }})</td>
-            </tr>
-            {% endif %}
           </tbody>
         </table>
 
-        <form method="post" action="/teams/{{ card.team.id }}/cash-count" class="row g-1 align-items-end mb-3">
-          <div class="col-8">
-            <label class="form-label small mb-0">Count the cash for this team</label>
-            <div class="input-group input-group-sm"><span class="input-group-text">$</span>
-              <input name="counted" class="form-control" placeholder="e.g. {{ '%.2f' % (card.financials.gross_cents/100) }}"></div>
+        {# --- Cash drawer: float + cash in - cash paid out = expected --- #}
+        {% set d = card.drawer %}
+        <div class="border rounded p-2 mb-3 {{ 'border-warning bg-warning-subtle' if d.variance_cents }}">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-semibold small"><i class="bi bi-cash-stack me-1"></i>Cash box</span>
+            {% if d.counted %}
+              {% if d.variance_cents == 0 %}<span class="badge bg-success status-pill"><i class="bi bi-check-circle"></i>Balances</span>
+              {% else %}<span class="badge bg-warning text-dark status-pill">
+                {{ 'Over' if d.variance_cents > 0 else 'Short' }} {{ (d.variance_cents if d.variance_cents > 0 else -d.variance_cents) | dollars }}</span>{% endif %}
+            {% endif %}
           </div>
-          <div class="col-4"><button class="btn btn-outline-secondary btn-sm w-100">Save count</button></div>
-        </form>
+          <table class="table table-sm table-borderless mb-2 small">
+            <tbody>
+              <tr><td>Opening float</td><td class="text-end money">{{ d.opening_float_cents | dollars }}</td></tr>
+              <tr><td>Cash taken in</td><td class="text-end money">{{ d.cash_wagers_cents | dollars }}</td></tr>
+              {% if d.cash_paid_out_cents %}<tr><td>Cash paid to winners</td><td class="text-end money">−{{ d.cash_paid_out_cents | dollars }}</td></tr>{% endif %}
+              <tr class="border-top"><th>Should be in the box</th><td class="text-end money">{{ d.expected_cents | dollars }}</td></tr>
+              {% if d.counted %}<tr><th>You counted</th><td class="text-end money">{{ d.counted_cents | dollars }}</td></tr>{% endif %}
+            </tbody>
+          </table>
+          <div class="row g-1">
+            <form method="post" action="/teams/{{ card.team.id }}/cash-count" class="col-12 mb-1">
+              <input type="hidden" name="kind" value="count">
+              <label class="form-label small mb-0">Count the box</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input name="counted" class="form-control" placeholder="e.g. {{ '%.2f' % (d.expected_cents/100) }}" required>
+                <input name="note" class="form-control" placeholder="Reason if over/short">
+                <button class="btn btn-outline-secondary">Save</button>
+              </div>
+            </form>
+            <form method="post" action="/teams/{{ card.team.id }}/cash-count" class="col-12">
+              <input type="hidden" name="kind" value="float">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">Opening float $</span>
+                <input name="counted" class="form-control" value="{{ '%.2f' % (d.opening_float_cents/100) }}">
+                <button class="btn btn-outline-secondary">Set float</button>
+              </div>
+            </form>
+          </div>
+        </div>
 
         <div class="text-muted small mb-1">Players by entries sold</div>
         <ol class="list-group list-group-numbered">

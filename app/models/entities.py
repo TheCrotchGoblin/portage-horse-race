@@ -216,10 +216,14 @@ class CashCount(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
+    # "count" = a physical count of the box; "float" = the opening change float.
+    kind: Mapped[str] = mapped_column(String(16), default="count", nullable=False)
     counted_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     counted_at: Mapped[datetime] = mapped_column(default=utcnow, nullable=False)
     counted_by: Mapped[str | None] = mapped_column(String(120))
     note: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (Index("ix_cash_counts_team", "team_id"),)
 
 
 class AuditLog(Base):

@@ -44,10 +44,21 @@ class PayoutStatus:
     PAID = "PAID"
     REVERSED = "REVERSED"
     HELD = "HELD"
-    LABELS = {UNPAID: "Unpaid", PAID: "Paid", REVERSED: "Reversed", HELD: "Held"}
-    # Money still owed / to resolve — blocks settlement. (HELD is a formally
-    # parked/resolved outcome per Appendix A, so it is NOT outstanding.)
+    # A winner who can't be reached / declines the money: the amount is waived
+    # (kept by the club or donated). A formally resolved outcome, so — like HELD —
+    # it is NOT outstanding and does not block settlement.
+    WAIVED = "WAIVED"
+    LABELS = {UNPAID: "Unpaid", PAID: "Paid", REVERSED: "Reversed", HELD: "Held", WAIVED: "Waived"}
+    # Money still owed / to resolve — blocks settlement. (HELD and WAIVED are
+    # formally parked/resolved outcomes per Appendix A, so they are NOT outstanding.)
     OUTSTANDING = (UNPAID, REVERSED)
+
+
+class CashCountKind:
+    """Distinguishes an opening change float from an actual cash count so the
+    drawer can be reconciled as float + cash-in − cash-out (not just sales)."""
+    FLOAT = "float"
+    COUNT = "count"
 
 
 class Position:

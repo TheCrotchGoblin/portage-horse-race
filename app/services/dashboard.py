@@ -6,8 +6,9 @@ from dataclasses import dataclass, field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import CashCount, Payout, Placement, Player, Team, Tournament
+from app.models import Payout, Placement, Player, Team, Tournament
 from app.models.enums import PayoutStatus, TournamentStatus
+from app.services import cash as cash_service
 from app.services import teams as team_service
 from app.services.calculations import TeamFinancials
 
@@ -17,10 +18,18 @@ class TeamCard:
     team: Team
     financials: TeamFinancials
     players: list[team_service.PlayerTotal]
-    counted_cents: int | None
-    variance_cents: int | None  # counted - expected (gross); None if not counted
+    drawer: cash_service.DrawerRecon
     placements_set: int
     warnings: list[str] = field(default_factory=list)
+
+    # Backwards-compatible shortcuts used by templates.
+    @property
+    def counted_cents(self) -> int | None:
+        return self.drawer.counted_cents
+
+    @property
+    def variance_cents(self) -> int | None:
+        return self.drawer.variance_cents
 
 
 @dataclass
@@ -38,16 +47,6 @@ class Dashboard:
         return sum(c.financials.active_entries for c in self.cards)
 
 
-def _latest_cash_count(session: Session, team_id: int) -> int | None:
-    row = session.execute(
-        select(CashCount.counted_cents)
-        .where(CashCount.team_id == team_id)
-        .order_by(CashCount.counted_at.desc(), CashCount.id.desc())
-        .limit(1)
-    ).first()
-    return int(row[0]) if row else None
-
-
 def build_dashboard(session: Session, tournament: Tournament) -> Dashboard:
     teams = session.scalars(
         select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)
@@ -59,8 +58,7 @@ def build_dashboard(session: Session, tournament: Tournament) -> Dashboard:
     for team in teams:
         fin = team_service.team_financials(session, team.id, tournament)
         players = team_service.player_totals(session, team.id)
-        counted = _latest_cash_count(session, team.id)
-        variance = None if counted is None else counted - fin.gross_cents
+        drawer = cash_service.team_drawer(session, team, fin.gross_cents)
         placements_set = session.scalar(
             select(func.count(Placement.id)).where(Placement.team_id == team.id)
         ) or 0
@@ -70,17 +68,16 @@ def build_dashboard(session: Session, tournament: Tournament) -> Dashboard:
             warnings.append("No players have been added to this team yet.")
         if tournament.status in (TournamentStatus.CLOSED, TournamentStatus.RESULTS_ENTERED) and placements_set < 3:
             warnings.append("Results are not fully entered (needs 1st, 2nd and 3rd).")
-        if variance is not None and variance != 0:
-            direction = "over" if variance > 0 else "short"
-            warnings.append(f"Cash count is {direction} by the amount shown.")
+        if drawer.variance_cents:
+            direction = "over" if drawer.variance_cents > 0 else "short"
+            warnings.append(f"Cash box is {direction} by the amount shown — count and note why.")
 
         cards.append(
             TeamCard(
                 team=team,
                 financials=fin,
                 players=players,
-                counted_cents=counted,
-                variance_cents=variance,
+                drawer=drawer,
                 placements_set=int(placements_set),
                 warnings=warnings,
             )

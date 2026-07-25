@@ -400,6 +400,10 @@ def check_settled(session: Session, tournament: Tournament) -> None:
     # An unclaimed pool must be formally disposed before the event is SETTLED (FR-108).
     undisposed = [p for p in unclaimed_placements(session, tournament.id) if p.disposition is None]
 
+    # An over/short cash box must be explained before settling (FIN-05).
+    from app.services import cash as cash_service
+    unexplained_cash = cash_service.unexplained_variance_teams(session, tournament.id)
+
     # Every team must have been through payout generation before settling —
     # otherwise fully paying one team would prematurely settle the whole event.
     teams_total = session.scalar(
@@ -412,6 +416,27 @@ def check_settled(session: Session, tournament: Tournament) -> None:
     ) or 0
     all_generated = teams_total > 0 and teams_total == teams_generated
 
-    if (total and not outstanding and not undisposed and all_generated
+    if (total and not outstanding and not undisposed and not unexplained_cash and all_generated
             and tournament.status == TournamentStatus.PAYOUTS_GENERATED):
         tournament.status = TournamentStatus.SETTLED
+
+
+def settlement_status_blockers(session: Session, tournament: Tournament) -> list[str]:
+    """Human-readable reasons a fully-generated event has not settled yet, shown
+    on the Payouts screen so the operator knows what's left."""
+    from app.services import cash as cash_service
+    reasons: list[str] = []
+    outstanding = session.scalar(
+        select(func.count(Payout.id))
+        .join(Placement, Payout.placement_id == Placement.id)
+        .join(Team, Placement.team_id == Team.id)
+        .where(Team.tournament_id == tournament.id, Payout.status.in_(PayoutStatus.OUTSTANDING))
+    ) or 0
+    if outstanding:
+        reasons.append(f"{outstanding} winner(s) still to pay or resolve.")
+    undisposed = [p for p in unclaimed_placements(session, tournament.id) if p.disposition is None]
+    if undisposed:
+        reasons.append(f"{len(undisposed)} unclaimed pool(s) need a decision.")
+    for team in cash_service.unexplained_variance_teams(session, tournament.id):
+        reasons.append(f"{team.name}'s cash box is over/short — count it and note why.")
+    return reasons

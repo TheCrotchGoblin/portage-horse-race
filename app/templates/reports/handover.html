@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Club handover statement{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">{{ tournament.name }} — Club handover statement</h1>
+    <div class="text-muted">{{ tournament.event_date or '' }} · Status: {{ status_label(tournament.status) }}</div>
+  </div>
+  <div class="no-print"><a href="/reports" class="btn btn-outline-secondary me-1"><i class="bi bi-arrow-left me-1"></i>Reports</a>
+    <button class="btn btn-brand" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button></div>
+</div>
+
+<p class="text-muted">A one-page summary to hand to the club treasurer at the end of the event.</p>
+
+<div class="card mb-3">
+  <div class="card-header"><strong>The money</strong></div>
+  <div class="card-body">
+    <table class="table mb-0">
+      <tr><th>Total taken in (gross sales)</th><td class="text-end money">{{ hand.gross | dollars }}</td></tr>
+      <tr class="table-success"><th>Club keeps (to deposit)</th><td class="text-end money fw-bold">{{ hand.club | dollars }}</td></tr>
+      <tr><th>Prize pool (all teams)</th><td class="text-end money">{{ hand.pool | dollars }}</td></tr>
+      <tr><td class="ps-4">Prize money paid to winners</td><td class="text-end money">{{ hand.paid | dollars }}</td></tr>
+      <tr class="{{ 'table-warning' if hand.outstanding }}"><td class="ps-4">Still owed to winners</td>
+        <td class="text-end money fw-semibold">{{ hand.outstanding | dollars }}</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><strong>The cash box</strong></div>
+  <div class="card-body">
+    <table class="table mb-0">
+      <tr><td>Opening float</td><td class="text-end money">{{ hand.float | dollars }}</td></tr>
+      <tr><td>+ cash taken in for wagers</td><td class="text-end money">{{ hand.gross | dollars }}</td></tr>
+      <tr><td>− prize money paid out in cash</td><td class="text-end money">{{ hand.cash_paid | dollars }}</td></tr>
+      <tr class="table-primary"><th>= cash that should be in hand now</th><td class="text-end money fw-bold">{{ hand.cash_on_hand_expected | dollars }}</td></tr>
+      {% if hand.any_counted %}
+      <tr><th>Last counted</th><td class="text-end money">{{ hand.counted | dollars }}
+        {% set v = hand.counted - hand.cash_on_hand_expected %}
+        <span class="{{ 'text-danger' if v != 0 }}">({{ 'over' if v > 0 else 'short' if v < 0 else 'exact' }} {{ v | dollars }})</span></td></tr>
+      {% endif %}
+    </table>
+    <p class="small text-muted mb-0">The club's deposit is the <strong>Club keeps</strong> figure above. The rest of the
+      cash on hand is prize money still to be paid to winners.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="row g-4 mt-2">
+      <div class="col-6">
+        <div style="border-top:1px solid #333; padding-top:.3rem">Cashier / operator — signature &amp; date</div>
+      </div>
+      <div class="col-6">
+        <div style="border-top:1px solid #333; padding-top:.3rem">Club treasurer — signature &amp; date</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -39,6 +39,7 @@ def payouts(request: Request, session: Session = Depends(get_session)):
         "dispositions": payout_service.DISPOSITIONS,
         "contact_statuses": payout_service.CONTACT_STATUSES,
         "event_settled": tournament.is_settled,
+        "settle_blockers": payout_service.settlement_status_blockers(session, tournament),
     })
     return render(request, "payouts/index.html", ctx)
 

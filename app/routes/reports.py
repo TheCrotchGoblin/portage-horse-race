@@ -38,6 +38,35 @@ def _payout_totals(session: Session, team_id: int) -> dict:
     }
 
 
+def _handover_context(session: Session, tournament, board, ctx: dict) -> dict:
+    """One-page Club Handover Statement: what the club keeps, what winners were
+    paid, what's still owed, and the physical cash that should be in hand."""
+    totals = [_payout_totals(session, c.team.id) for c in board.cards]
+    gross = sum(c.financials.gross_cents for c in board.cards)
+    club = sum(c.financials.club_share_cents for c in board.cards)
+    pool = sum(c.financials.prize_pool_cents for c in board.cards)
+    paid = sum(t["paid"] for t in totals)
+    outstanding = sum(t["outstanding"] for t in totals)
+    cash_paid = sum(c.drawer.cash_paid_out_cents for c in board.cards)
+    float_total = sum(c.drawer.opening_float_cents for c in board.cards)
+    any_counted = any(c.drawer.counted for c in board.cards)
+    ctx["hand"] = {
+        "gross": gross,
+        "club": club,               # club's share, to deposit
+        "pool": pool,
+        "paid": paid,               # total prize money paid (any method)
+        "outstanding": outstanding,  # still owed to winners
+        "float": float_total,
+        "cash_paid": cash_paid,      # prize money paid from the box in cash
+        # Cash that should physically be in hand right now:
+        # float + everything taken in − cash already paid out.
+        "cash_on_hand_expected": float_total + gross - cash_paid,
+        "counted": sum((c.drawer.counted_cents or 0) for c in board.cards) if any_counted else None,
+        "any_counted": any_counted,
+    }
+    return ctx
+
+
 @router.get("")
 def index(request: Request, session: Session = Depends(get_session)):
     ctx = base_context(request, session, "reports")
@@ -63,6 +92,7 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
             unclaimed = card.financials.prize_pool_cents - totals["generated"] if totals["generated"] else 0
             recon.append({"card": card, "totals": totals, "unclaimed": max(unclaimed, 0)})
         ctx["recon"] = recon
+        any_counted = any(c.drawer.counted for c in board.cards)
         ctx["grand"] = {
             "gross": sum(c.financials.gross_cents for c in board.cards),
             "club": sum(c.financials.club_share_cents for c in board.cards),
@@ -72,8 +102,18 @@ def print_view(request: Request, kind: str, session: Session = Depends(get_sessi
             "unpaid": sum(r["totals"]["unpaid"] for r in recon),
             "reversed": sum(r["totals"]["reversed"] for r in recon),
             "outstanding": sum(r["totals"]["outstanding"] for r in recon),
+            # Cash drawer roll-up
+            "float": sum(c.drawer.opening_float_cents for c in board.cards),
+            "cash_paid": sum(c.drawer.cash_paid_out_cents for c in board.cards),
+            "expected": sum(c.drawer.expected_cents for c in board.cards),
+            "any_counted": any_counted,
+            "counted": sum((c.drawer.counted_cents or 0) for c in board.cards) if any_counted else None,
+            "variance": sum((c.drawer.variance_cents or 0) for c in board.cards) if any_counted else None,
         }
         return render(request, "reports/reconciliation.html", ctx)
+
+    if kind == "handover":
+        return render(request, "reports/handover.html", _handover_context(session, tournament, board, ctx))
 
     if kind == "results":
         from app.services import payouts as payout_service

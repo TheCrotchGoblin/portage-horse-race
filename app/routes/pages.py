@@ -10,8 +10,9 @@ from sqlalchemy import select
 from app.database import get_session
 from app.formatting import dollars_to_cents
 from app.models import CashCount, Team, Tournament
-from app.models.enums import TournamentStatus
+from app.models.enums import CashCountKind, TournamentStatus
 from app.routes.deps import base_context, get_active_tournament, operator_name
+from app.services import audit
 from app.services import dashboard as dashboard_service
 from app.templating import flash, render
 
@@ -72,17 +73,35 @@ def record_cash_count(
     team_id: int,
     session: Session = Depends(get_session),
     counted: str = Form(...),
+    kind: str = Form(CashCountKind.COUNT),
+    note: str = Form(""),
 ):
     tournament = get_active_tournament(session)
     team = session.get(Team, team_id)
     if team is None or team.tournament_id != tournament.id:
         flash(request, "Team not found.", "danger")
         return RedirectResponse("/dashboard", status_code=303)
+    if kind not in (CashCountKind.COUNT, CashCountKind.FLOAT):
+        kind = CashCountKind.COUNT
     try:
         counted_cents = dollars_to_cents(counted)
     except ValueError:
         flash(request, "That is not a valid dollar amount.", "danger")
         return RedirectResponse("/dashboard", status_code=303)
-    session.add(CashCount(team_id=team_id, counted_cents=counted_cents, counted_by=operator_name(request)))
-    flash(request, f"Cash count recorded for {team.name}.")
+
+    operator = operator_name(request)
+    note = (note or "").strip() or None
+    session.add(CashCount(team_id=team_id, kind=kind, counted_cents=counted_cents,
+                          counted_by=operator, note=note))
+    session.flush()
+    if kind == CashCountKind.FLOAT:
+        audit.record(session, action_type="cash_float_set", actor=operator,
+                     tournament_id=tournament.id, entity_type="team", entity_id=team.id,
+                     after={"float_cents": counted_cents})
+        flash(request, f"Opening float set for {team.name}.")
+    else:
+        audit.record(session, action_type="cash_count", actor=operator,
+                     tournament_id=tournament.id, entity_type="team", entity_id=team.id,
+                     after={"counted_cents": counted_cents}, reason=note)
+        flash(request, f"Cash count recorded for {team.name}.")
     return RedirectResponse("/dashboard", status_code=303)
