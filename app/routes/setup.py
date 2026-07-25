@@ -52,6 +52,8 @@ def _overview_context(request: Request, session: Session, tournament: Tournament
     ctx["locked"] = setup_service.has_sales(session, tournament.id)
     ctx["checklist"] = setup_service.setup_checklist(session, tournament)
     ctx["ready_to_open"] = all(i["done"] for i in ctx["checklist"])
+    ctx["advisories"] = setup_service.setup_advisories(session, tournament)
+    ctx["player_counts"] = setup_service.team_player_counts(session, tournament)
     return ctx
 
 
@@ -127,21 +129,21 @@ def create(
 def update_config(
     request: Request,
     session: Session = Depends(get_session),
-    name: str = Form(...),
-    event_date: str = Form(""),
     entry_price: str = Form(...),
     club_percent: str = Form(...),
     first_percent: str = Form(...),
     second_percent: str = Form(...),
     third_percent: str = Form(...),
 ):
+    """Financial settings only — name/date are edited separately (/setup/details)
+    so they stay changeable after sales while the money fields lock."""
     tournament = get_active_tournament(session)
     try:
         setup_service.update_config(
             session,
             tournament,
-            name=name,
-            event_date=event_date,
+            name=tournament.name,
+            event_date=tournament.event_date,
             entry_price_cents=dollars_to_cents(entry_price),
             club_bps=setup_service.percent_to_bps(club_percent),
             first_bps=setup_service.percent_to_bps(first_percent),
@@ -155,13 +157,82 @@ def update_config(
             "config_error": str(exc),
             "config_invalid": _invalid_fields(str(exc)),
             "config_values": {
-                "name": name, "event_date": event_date, "entry_price": entry_price,
-                "club_percent": club_percent, "first_percent": first_percent,
-                "second_percent": second_percent, "third_percent": third_percent,
+                "entry_price": entry_price, "club_percent": club_percent,
+                "first_percent": first_percent, "second_percent": second_percent,
+                "third_percent": third_percent,
             },
         })
         return render(request, "setup/overview.html", ctx, status_code=400)
     flash(request, "Settings saved.")
+    return _redirect("/setup")
+
+
+@router.post("/details")
+def update_details(request: Request, session: Session = Depends(get_session),
+                   name: str = Form(...), event_date: str = Form("")):
+    """Edit name/date — always allowed, even after sales (no money involved)."""
+    tournament = get_active_tournament(session)
+    if tournament is None:
+        return _redirect("/setup/new")
+    try:
+        setup_service.update_details(session, tournament, name=name,
+                                     event_date=event_date, operator=operator_name(request))
+    except SetupError as exc:
+        flash(request, str(exc), "danger")
+        return _redirect("/setup")
+    flash(request, "Event details saved.")
+    return _redirect("/setup")
+
+
+@router.post("/teams/{team_id}/rename")
+def rename_team(request: Request, team_id: int, session: Session = Depends(get_session),
+                team_name: str = Form(...)):
+    tournament = get_active_tournament(session)
+    team = session.get(Team, team_id)
+    if team is None or team.tournament_id != tournament.id:
+        flash(request, "That team was not found.", "danger")
+        return _redirect("/setup")
+    try:
+        setup_service.rename_team(session, tournament, team, team_name)
+    except SetupError as exc:
+        flash(request, str(exc), "danger")
+        return _redirect("/setup")
+    flash(request, "Team renamed.")
+    return _redirect("/setup")
+
+
+@router.post("/players/{player_id}/rename")
+def rename_player(request: Request, player_id: int, session: Session = Depends(get_session),
+                  player_name: str = Form(...)):
+    tournament = get_active_tournament(session)
+    player = session.get(Player, player_id)
+    if player is None:
+        flash(request, "That player was not found.", "danger")
+        return _redirect("/setup")
+    try:
+        setup_service.rename_player(session, player, player_name)
+    except SetupError as exc:
+        flash(request, str(exc), "danger")
+        return _redirect("/setup")
+    flash(request, "Player renamed.")
+    return _redirect("/setup")
+
+
+@router.post("/players/{player_id}/move")
+def move_player(request: Request, player_id: int, session: Session = Depends(get_session),
+                target_team_id: str = Form(...)):
+    tournament = get_active_tournament(session)
+    player = session.get(Player, player_id)
+    target = session.get(Team, int(target_team_id)) if target_team_id else None
+    if player is None or target is None or target.tournament_id != tournament.id:
+        flash(request, "That player or team was not found.", "danger")
+        return _redirect("/setup")
+    try:
+        setup_service.move_player(session, player, target)
+    except SetupError as exc:
+        flash(request, str(exc), "danger")
+        return _redirect("/setup")
+    flash(request, f"Moved {player.name} to {target.name}.")
     return _redirect("/setup")
 
 
@@ -201,20 +272,45 @@ def players_template():
 
 
 @router.post("/import-players")
-def import_players(request: Request, session: Session = Depends(get_session), file: UploadFile = File(...)):
+def import_players(request: Request, session: Session = Depends(get_session),
+                   file: UploadFile = File(...), create_teams: str = Form("")):
     tournament = get_active_tournament(session)
     try:
         text = file.file.read().decode("utf-8-sig", errors="replace")
     except Exception:
         flash(request, "Could not read that file — please upload a plain CSV.", "danger")
         return _redirect("/setup")
-    result = setup_service.import_players_csv(session, tournament, text)
+    result = setup_service.import_players_csv(session, tournament, text,
+                                              create_teams=bool(create_teams))
     msg = f"Imported {result['added']} player(s)."
+    if result.get("created_teams"):
+        msg += f" Created {len(result['created_teams'])} new team(s): {', '.join(result['created_teams'])}."
     if result["skipped"]:
         msg += f" Skipped {result['skipped']} already on their team."
     if result["unknown_teams"]:
-        msg += f" These team names weren't found (create them first): {', '.join(result['unknown_teams'])}."
+        msg += f" These team names weren't found (tick 'create teams' to add them): {', '.join(result['unknown_teams'])}."
     flash(request, msg, "warning" if (result["skipped"] or result["unknown_teams"]) else "success")
+    return _redirect("/setup")
+
+
+@router.post("/{tournament_id}/clone")
+def clone(request: Request, tournament_id: int, session: Session = Depends(get_session),
+          name: str = Form(...), event_date: str = Form(""), admin_pin: str = Form("")):
+    """Start a fresh event from an archived one (copies teams/players/config)."""
+    source = session.get(Tournament, tournament_id)
+    if source is None:
+        flash(request, "Tournament not found.", "danger")
+        return _redirect("/")
+    if not admin_pin_ok(session, admin_pin):
+        flash(request, "Incorrect administrator PIN.", "danger")
+        return _redirect("/")
+    try:
+        clone = setup_service.clone_tournament(
+            session, source, name=name, event_date=event_date, operator=operator_name(request))
+    except SetupError as exc:
+        flash(request, str(exc), "danger")
+        return _redirect("/")
+    flash(request, f"Started '{clone.name}' from '{source.name}'. Review the teams and open wagering when ready.")
     return _redirect("/setup")
 
 

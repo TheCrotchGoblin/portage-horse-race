@@ -57,15 +57,32 @@
 
     {% if archived %}
     <div class="card shadow-sm mt-3">
-      <div class="card-header"><strong>Reopen a past tournament</strong></div>
+      <div class="card-header"><strong>Past tournaments</strong></div>
       <ul class="list-group list-group-flush">
         {% for a in archived %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>{{ a.name }} <span class="text-muted small">{{ a.event_date or '' }}</span></span>
-          <form method="post" action="/setup/{{ a.id }}/reopen" class="d-flex gap-1 m-0">
-            <input class="form-control form-control-sm" style="width:120px" name="admin_pin" placeholder="Admin PIN">
-            <button class="btn btn-sm btn-outline-brand">Reopen</button>
-          </form>
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between align-items-center">
+            <span>{{ a.name }} <span class="text-muted small">{{ a.event_date or '' }}</span></span>
+            <span class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-brand" data-bs-toggle="collapse" data-bs-target="#clone-{{ a.id }}"
+                      title="Start a new event from this one"><i class="bi bi-files me-1"></i>Start new from this</button>
+              <form method="post" action="/setup/{{ a.id }}/reopen" class="d-flex gap-1 m-0">
+                <input class="form-control form-control-sm" style="width:110px" name="admin_pin" placeholder="Admin PIN">
+                <button class="btn btn-sm btn-outline-secondary">Reopen</button>
+              </form>
+            </span>
+          </div>
+          <div class="collapse mt-2" id="clone-{{ a.id }}">
+            <form method="post" action="/setup/{{ a.id }}/clone" class="row g-1 align-items-end">
+              <div class="col-md-5"><label class="form-label small mb-0">New name</label>
+                <input class="form-control form-control-sm" name="name" value="Portage Men's Open {{ next_year }}" required></div>
+              <div class="col-md-3"><label class="form-label small mb-0">Date</label>
+                <input type="date" class="form-control form-control-sm" name="event_date"></div>
+              <div class="col-md-2"><input class="form-control form-control-sm" name="admin_pin" placeholder="Admin PIN"></div>
+              <div class="col-md-2"><button class="btn btn-sm btn-brand w-100">Create</button></div>
+            </form>
+            <div class="form-text">Copies the teams, players and settings — not the wagers or results.</div>
+          </div>
         </li>
         {% endfor %}
       </ul>

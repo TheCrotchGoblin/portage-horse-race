@@ -33,13 +33,13 @@ def test_settings_edit_keeps_values_on_error(client):
     client.post("/setup/new", data={
         "name": "Cfg Open", "entry_price": "5.00", "club_percent": "15",
         "first_percent": "60", "second_percent": "30", "third_percent": "10"})
+    # Name/date are edited separately now; the financial form holds money fields.
     r = client.post("/setup/config", data={
-        "name": "Renamed Open", "event_date": "", "entry_price": "7.00",
+        "entry_price": "7.00",
         "club_percent": "20", "first_percent": "70", "second_percent": "20", "third_percent": "20",
     }, follow_redirects=False)
     assert r.status_code == 400  # re-rendered
     assert "add up to exactly 100%" in r.text
-    assert 'value="Renamed Open"' in r.text   # name kept
     assert 'value="7.00"' in r.text           # price kept
 
 

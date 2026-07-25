@@ -134,6 +134,123 @@ def update_config(
     )
 
 
+def update_details(session: Session, tournament: Tournament, *, name: str,
+                   event_date: str | None, operator: str) -> None:
+    """Edit the tournament name and date. Unlike price/percentages, these carry
+    no financial weight, so they stay editable even after sales have started."""
+    name = (name or "").strip()
+    if not name:
+        raise SetupError("Please give the tournament a name.")
+    before = {"name": tournament.name, "event_date": tournament.event_date}
+    tournament.name = name
+    tournament.event_date = event_date or None
+    audit.record(session, action_type="tournament_details_changed", actor=operator,
+                 tournament_id=tournament.id, entity_type="tournament", entity_id=tournament.id,
+                 before=before, after={"name": name, "event_date": event_date or None})
+
+
+def rename_team(session: Session, tournament: Tournament, team: Team, new_name: str) -> None:
+    """Rename a team (fix a typo) — allowed any time; touches no money. Audited."""
+    new_name = (new_name or "").strip()
+    if not new_name:
+        raise SetupError("Please enter a team name.")
+    clash = session.scalar(
+        select(func.count(Team.id)).where(
+            Team.tournament_id == tournament.id, Team.id != team.id,
+            func.lower(Team.name) == new_name.lower())
+    )
+    if clash:
+        raise SetupError(f"There is already a team called '{new_name}'.")
+    before = team.name
+    team.name = new_name
+    audit.record(session, action_type="team_renamed", actor=None, tournament_id=tournament.id,
+                 entity_type="team", entity_id=team.id, before={"name": before}, after={"name": new_name})
+
+
+def rename_player(session: Session, player: Player, new_name: str) -> None:
+    """Rename a player (fix a misspelling) — allowed even after they have wagers,
+    since it changes no financial record. Audited; guards duplicates on the team."""
+    new_name = (new_name or "").strip()
+    if not new_name:
+        raise SetupError("Please enter a player name.")
+    clash = session.scalar(
+        select(func.count(Player.id)).where(
+            Player.team_id == player.team_id, Player.id != player.id,
+            func.lower(Player.name) == new_name.lower())
+    )
+    if clash:
+        raise SetupError(f"There is already a player called '{new_name}' on this team.")
+    before = player.name
+    player.name = new_name
+    audit.record(session, action_type="player_renamed", actor=None,
+                 entity_type="player", entity_id=player.id,
+                 before={"name": before}, after={"name": new_name})
+
+
+def move_player(session: Session, player: Player, target_team: Team) -> None:
+    """Move a player to another team. Blocked once they have wagers, because those
+    wagers belong to the team they were sold under (moving would misattribute money)."""
+    if player.team_id == target_team.id:
+        return
+    count = session.scalar(select(func.count(Wager.id)).where(Wager.player_id == player.id)) or 0
+    if count:
+        raise SetupError(f"'{player.name}' already has wagers, so they can't be moved. Void those wagers first.")
+    clash = session.scalar(
+        select(func.count(Player.id)).where(
+            Player.team_id == target_team.id, func.lower(Player.name) == player.name.lower())
+    )
+    if clash:
+        raise SetupError(f"'{player.name}' is already on {target_team.name}.")
+    before = player.team_id
+    start = session.scalar(
+        select(func.coalesce(func.max(Player.display_order), 0)).where(Player.team_id == target_team.id)
+    ) or 0
+    player.team_id = target_team.id
+    player.display_order = start + 1
+    audit.record(session, action_type="player_moved", actor=None,
+                 entity_type="player", entity_id=player.id,
+                 before={"team_id": before}, after={"team_id": target_team.id})
+
+
+def clone_tournament(session: Session, source: Tournament, *, name: str,
+                     event_date: str | None, operator: str) -> Tournament:
+    """Start a fresh DRAFT from an existing event: copy the team names, their
+    active players and all financial settings — but NOT wagers, customers,
+    results or payouts (spec SET-05). Perfect for next year's event."""
+    name = (name or "").strip()
+    if not name:
+        raise SetupError("Please give the new tournament a name.")
+    active = session.scalar(
+        select(func.count(Tournament.id)).where(Tournament.status != TournamentStatus.ARCHIVED)
+    )
+    if active:
+        raise SetupError("Archive the current tournament before starting a new one from a past event.")
+
+    clone = Tournament(
+        name=name, event_date=event_date or None, status=TournamentStatus.DRAFT,
+        entry_price_cents=source.entry_price_cents, club_bps=source.club_bps,
+        first_bps=source.first_bps, second_bps=source.second_bps, third_bps=source.third_bps,
+    )
+    session.add(clone)
+    session.flush()
+    for team in session.scalars(select(Team).where(Team.tournament_id == source.id).order_by(Team.id)).all():
+        new_team = Team(tournament_id=clone.id, name=team.name, wagering_status=WageringStatus.CLOSED)
+        session.add(new_team)
+        session.flush()
+        players = session.scalars(
+            select(Player).where(Player.team_id == team.id, Player.active.is_(True))
+            .order_by(Player.display_order, Player.id)
+        ).all()
+        for p in players:
+            session.add(Player(team_id=new_team.id, name=p.name,
+                               display_order=p.display_order, active=True))
+    session.flush()
+    audit.record(session, action_type="tournament_cloned", actor=operator, tournament_id=clone.id,
+                 entity_type="tournament", entity_id=clone.id,
+                 after={"name": name, "cloned_from": source.id})
+    return clone
+
+
 def add_team(session: Session, tournament: Tournament, name: str) -> Team:
     name = (name or "").strip()
     if not name:
@@ -179,11 +296,14 @@ def add_players(session: Session, team: Team, names: list[str]) -> tuple[list[Pl
     return created, skipped
 
 
-def import_players_csv(session: Session, tournament: Tournament, csv_text: str) -> dict:
+def import_players_csv(session: Session, tournament: Tournament, csv_text: str,
+                       *, create_teams: bool = False) -> dict:
     """Import players from CSV text with columns: team, player[, order] (spec SET-02).
 
-    Teams are matched by name (case-insensitive); unknown teams are reported, not
-    created. Duplicate players (per team) are skipped. Returns a summary.
+    Teams are matched by name (case-insensitive). If create_teams is set, team
+    names in the file that don't exist yet are created automatically — so an
+    80-golfer / 4-team spreadsheet imports in one step. Otherwise unknown teams
+    are reported, not created. Duplicate players (per team) are skipped.
     """
     import csv
     import io
@@ -197,6 +317,7 @@ def import_players_csv(session: Session, tournament: Tournament, csv_text: str) 
              session.scalars(select(Team).where(Team.tournament_id == tournament.id)).all()}
     by_team: dict[int, list[str]] = defaultdict(list)
     unknown: list[str] = []
+    created_teams: list[str] = []
     for row in rows:
         if len(row) < 2:
             continue
@@ -205,8 +326,13 @@ def import_players_csv(session: Session, tournament: Tournament, csv_text: str) 
             continue
         team = teams.get(team_name.lower())
         if team is None:
-            unknown.append(team_name)
-            continue
+            if create_teams and team_name:
+                team = add_team(session, tournament, team_name)
+                teams[team_name.lower()] = team
+                created_teams.append(team.name)
+            else:
+                unknown.append(team_name)
+                continue
         by_team[team.id].append(player_name)
 
     added = skipped = 0
@@ -215,6 +341,7 @@ def import_players_csv(session: Session, tournament: Tournament, csv_text: str) 
         added += len(created)
         skipped += len(dupes)
     return {"added": added, "skipped": skipped,
+            "created_teams": sorted(set(created_teams)),
             "unknown_teams": sorted(set(u for u in unknown if u))}
 
 
@@ -249,6 +376,28 @@ def setup_checklist(session: Session, tournament: Tournament) -> list[dict]:
          "done": bool(teams) and teams_with_players == len(teams)},
     ]
     return items
+
+
+def team_player_counts(session: Session, tournament: Tournament) -> dict[int, int]:
+    rows = session.execute(
+        select(Player.team_id, func.count(Player.id))
+        .join(Team, Player.team_id == Team.id)
+        .where(Team.tournament_id == tournament.id)
+        .group_by(Player.team_id)
+    ).all()
+    return {int(tid): int(n) for tid, n in rows}
+
+
+def setup_advisories(session: Session, tournament: Tournament) -> list[str]:
+    """Non-blocking heads-up shown during setup (SET-03). A team with fewer than
+    three players can't fill 1st/2nd/3rd, which otherwise only bites at settlement."""
+    counts = team_player_counts(session, tournament)
+    msgs: list[str] = []
+    for team in session.scalars(select(Team).where(Team.tournament_id == tournament.id).order_by(Team.id)).all():
+        n = counts.get(team.id, 0)
+        if 0 < n < 3:
+            msgs.append(f"{team.name} has only {n} player(s) — a team needs 3 to award 1st, 2nd and 3rd.")
+    return msgs
 
 
 def _ready_to_open(session: Session, tournament: Tournament) -> None:

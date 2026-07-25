@@ -28,6 +28,11 @@
           <span class="{{ 'text-muted' if item.done }}">{{ item.label }}</span>
         </li>
         {% endfor %}
+        {% for a in advisories %}
+        <li class="list-group-item d-flex align-items-center py-2 bg-warning-subtle">
+          <i class="bi bi-exclamation-triangle text-warning me-2"></i><span class="small">{{ a }}</span>
+        </li>
+        {% endfor %}
       </ul>
     </div>
 
@@ -35,9 +40,13 @@
       <div class="card-header"><strong>Import players from a spreadsheet</strong></div>
       <div class="card-body">
         <p class="small text-muted mb-2">Upload a CSV with two columns — <code>team, player</code>.
-          Team names must match teams you've added. <a href="/setup/players-template.csv">Download a sample</a>.</p>
-        <form method="post" action="/setup/import-players" enctype="multipart/form-data" class="d-flex gap-2">
-          <input type="file" name="file" accept=".csv,text/csv" class="form-control form-control-sm" required>
+          <a href="/setup/players-template.csv">Download a sample</a>.</p>
+        <form method="post" action="/setup/import-players" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+          <input type="file" name="file" accept=".csv,text/csv" class="form-control form-control-sm" style="max-width:280px" required>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="create_teams" value="1" id="create-teams" checked>
+            <label class="form-check-label small" for="create-teams">Also create any new teams found in the file</label>
+          </div>
           <button class="btn btn-outline-brand btn-sm text-nowrap"><i class="bi bi-upload me-1"></i>Import CSV</button>
         </form>
       </div>
@@ -46,10 +55,13 @@
     {% for team in teams %}
     <div class="card shadow-sm mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>{{ team.name }}</strong>
+        <span><strong>{{ team.name }}</strong>
+          <span class="badge bg-light text-dark border ms-1">{{ player_counts.get(team.id, 0) }} player(s)</span></span>
         <span>
           <span class="badge {{ 'bg-success' if team.wagering_status=='OPEN' else 'bg-secondary' }}">
             Wagering {{ wagering_label(team.wagering_status) }}</span>
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#fix-{{ team.id }}"
+                  title="Rename or fix players"><i class="bi bi-pencil"></i></button>
           <form method="post" action="/setup/teams/{{ team.id }}/delete" class="d-inline"
                 data-confirm="Remove team {{ team.name }} and its players?">
             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Remove</button></form>
@@ -69,6 +81,35 @@
         {% else %}
         <p class="text-muted">No players yet — add them below.</p>
         {% endif %}
+
+        {# --- Fix names / move players (collapsed) --- #}
+        <div class="collapse mb-3" id="fix-{{ team.id }}">
+          <div class="border rounded p-2 bg-light">
+            <form method="post" action="/setup/teams/{{ team.id }}/rename" class="input-group input-group-sm mb-2">
+              <span class="input-group-text">Team name</span>
+              <input name="team_name" class="form-control" value="{{ team.name }}">
+              <button class="btn btn-outline-brand">Rename team</button>
+            </form>
+            {% for p in team.players %}
+            <div class="d-flex gap-1 mb-1 flex-wrap align-items-center">
+              <form method="post" action="/setup/players/{{ p.id }}/rename" class="input-group input-group-sm" style="max-width:280px">
+                <input name="player_name" class="form-control" value="{{ p.name }}">
+                <button class="btn btn-outline-secondary" title="Rename"><i class="bi bi-check-lg"></i></button>
+              </form>
+              {% if teams|length > 1 %}
+              <form method="post" action="/setup/players/{{ p.id }}/move" class="input-group input-group-sm" style="max-width:220px">
+                <select name="target_team_id" class="form-select">
+                  {% for t in teams if t.id != team.id %}<option value="{{ t.id }}">Move to {{ t.name }}</option>{% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary" title="Move"><i class="bi bi-arrow-right"></i></button>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+            <div class="form-text">Renaming touches no money. Moving is blocked once a player has wagers.</div>
+          </div>
+        </div>
+
         <form method="post" action="/setup/teams/{{ team.id }}/players">
           <label class="form-label small">Add players (one per line, or comma-separated)</label>
           <textarea name="players" class="form-control mb-2" rows="3"
@@ -95,6 +136,20 @@
 
     {% set cfg = config_values or {} %}
     {% set cinv = config_invalid or [] %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-header"><strong>Event details</strong></div>
+      <div class="card-body">
+        <form method="post" action="/setup/details">
+          <div class="mb-2"><label class="form-label small">Name</label>
+            <input name="name" class="form-control form-control-sm" value="{{ tournament.name }}" required></div>
+          <div class="mb-2"><label class="form-label small">Event date</label>
+            <input type="date" name="event_date" class="form-control form-control-sm" value="{{ tournament.event_date or '' }}"></div>
+          <button class="btn btn-outline-brand btn-sm w-100"><i class="bi bi-check-lg me-1"></i>Save details</button>
+        </form>
+        <div class="form-text">Name and date can be changed any time — they carry no money.</div>
+      </div>
+    </div>
+
     <div class="card shadow-sm mb-3 {{ 'border-danger' if config_error }}">
       <div class="card-header"><strong>Financial settings</strong></div>
       <div class="card-body">
@@ -103,10 +158,6 @@
         {% endif %}
         {% if config_error %}<div class="alert alert-danger py-2 small">{{ config_error }}</div>{% endif %}
         <form method="post" action="/setup/config">
-          <div class="mb-2"><label class="form-label small">Name</label>
-            <input name="name" class="form-control form-control-sm {{ 'is-invalid' if 'name' in cinv }}" value="{{ cfg.get('name', tournament.name) }}" {{ 'disabled' if locked }}></div>
-          <div class="mb-2"><label class="form-label small">Event date</label>
-            <input type="date" name="event_date" class="form-control form-control-sm" value="{{ cfg.get('event_date', tournament.event_date or '') }}" {{ 'disabled' if locked }}></div>
           <div class="mb-2"><label class="form-label small">Price per entry</label>
             <div class="input-group input-group-sm"><span class="input-group-text">$</span>
               <input name="entry_price" class="form-control {{ 'is-invalid' if 'price' in cinv }}" value="{{ cfg.get('entry_price', '%.2f' % (tournament.entry_price_cents/100)) }}" {{ 'disabled' if locked }}></div></div>

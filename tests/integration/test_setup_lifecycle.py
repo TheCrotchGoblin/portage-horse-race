@@ -44,7 +44,7 @@ def test_reopen_archived_from_welcome(client):
 
     home = client.get("/").text
     assert "Welcome" in home
-    assert "Reopen a past tournament" in home  # archived tournament is offered here
+    assert "Past tournaments" in home  # archived tournament is offered here (reopen / clone)
 
     r = client.post(f"/setup/{tid}/reopen", follow_redirects=True)
     assert r.status_code == 200

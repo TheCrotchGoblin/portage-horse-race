@@ -26,11 +26,13 @@ def home(request: Request, session: Session = Depends(get_session)):
     ctx = base_context(request, session, "")
     tournament = ctx["tournament"]
     if tournament is None:
-        # Offer any past (archived) tournaments to reopen.
+        from datetime import datetime
+        # Offer any past (archived) tournaments to reopen or clone.
         ctx["archived"] = session.scalars(
             select(Tournament).where(Tournament.status == TournamentStatus.ARCHIVED)
             .order_by(Tournament.created_at.desc())
         ).all()
+        ctx["next_year"] = datetime.now().year + 1
     return render(request, "welcome.html", ctx)
 
 
