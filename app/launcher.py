@@ -71,8 +71,9 @@ def main() -> int:
 
     # Single instance: only start a server if one isn't already running.
     server: uvicorn.Server | None = None
+    fastapi_app = None
     if not _port_in_use(host, port):
-        from app.main import app as fastapi_app
+        from app.main import app as fastapi_app  # noqa: F811
 
         server = _start_server(fastapi_app, host, port)
     else:
@@ -81,7 +82,11 @@ def main() -> int:
     try:
         import webview
 
-        webview.create_window(WINDOW_TITLE, url, width=1240, height=840, min_size=(960, 680))
+        window = webview.create_window(WINDOW_TITLE, url, width=1240, height=840, min_size=(960, 680))
+        # Hand the window to the app so routes can open native Save/Open dialogs
+        # (USB export, restore-from-file). Only when we own the server in-process.
+        if fastapi_app is not None:
+            fastapi_app.state.window = window
         webview.start()  # blocks until the window is closed
     except Exception:
         logger.exception("Native window unavailable; opening the default browser instead")

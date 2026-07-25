@@ -12,14 +12,26 @@ from datetime import datetime
 from pathlib import Path
 
 
+class BackupError(RuntimeError):
+    """A backup was written but failed verification — do not trust it."""
+
+
+# Reasons whose backups are permanent milestones (never auto-pruned).
+MILESTONE_REASONS = ("manual", "settlement_package", "pre_restore")
+
+
 def _timestamp() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
-def backup_database(db_path: Path, backup_dir: Path, *, reason: str = "manual") -> Path | None:
+def backup_database(db_path: Path, backup_dir: Path, *, reason: str = "manual",
+                    verify: bool = False, prune: bool = True) -> Path | None:
     """Create a timestamped consistent copy of the database.
 
     Returns the backup path, or None if there is no database to back up yet.
+    If ``verify`` is set, the fresh copy is integrity-checked and a BackupError
+    is raised if it doesn't pass — so a bad manual backup fails loudly rather
+    than giving false comfort (BKP-05).
     """
     db_path = Path(db_path)
     backup_dir = Path(backup_dir)
@@ -39,7 +51,38 @@ def backup_database(db_path: Path, backup_dir: Path, *, reason: str = "manual") 
             dst.close()
     finally:
         src.close()
+
+    if verify and not validate_backup(dest):
+        raise BackupError(f"the backup just written ({dest.name}) did not verify")
+    if prune:
+        try:
+            prune_backups(backup_dir)
+        except OSError:
+            pass  # never let housekeeping fail a backup
     return dest
+
+
+def _reason_of(path: Path) -> str:
+    # horse_race_<ts1>_<ts2>_<reason>.sqlite3  ->  reason
+    stem = path.stem  # horse_race_YYYYMMDD_HHMMSS_reason
+    parts = stem.split("_")
+    return parts[-1] if len(parts) >= 4 else ""
+
+
+def prune_backups(backup_dir: Path, *, keep_auto: int = 20) -> list[Path]:
+    """Retention (BKP-06): keep every milestone backup forever, and the most
+    recent ``keep_auto`` routine (startup/autosave) backups; delete older ones so
+    the folder can't grow without bound. Returns the paths removed."""
+    routine = [p for p in list_backups(backup_dir)
+               if _reason_of(p) not in MILESTONE_REASONS]
+    removed: list[Path] = []
+    for path in routine[keep_auto:]:  # list_backups is newest-first
+        try:
+            path.unlink()
+            removed.append(path)
+        except OSError:
+            pass
+    return removed
 
 
 def list_backups(backup_dir: Path) -> list[Path]:

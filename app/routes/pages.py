@@ -49,6 +49,9 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
     ctx = base_context(request, session, "dashboard")
     ctx["board"] = dashboard_service.build_dashboard(session, tournament)
     ctx["backup_health"] = _backup_health(request)
+    # Show the crash-recovery all-clear once, then clear it.
+    ctx["recovered_unclean"] = getattr(request.app.state, "recovered_unclean", False)
+    request.app.state.recovered_unclean = False
     return render(request, "dashboard.html", ctx)
 
 

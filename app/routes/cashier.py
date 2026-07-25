@@ -85,6 +85,28 @@ def _cart_view(session: Session, tournament, cart: dict) -> tuple[list[dict], in
     return rows, total, entries
 
 
+def _maybe_autosave(request: Request, entries: int) -> None:
+    """Take a quiet background backup every ~25 entries or ~15 minutes of selling,
+    so a full day's records are never far from a saved copy (BKP-06). Cheap: WAL
+    already persists each sale; this just adds a restorable snapshot cadence."""
+    import time
+
+    from app.services import backups
+
+    state = request.app.state
+    settings = state.settings
+    state.wagers_since_backup = getattr(state, "wagers_since_backup", 0) + entries
+    elapsed = time.time() - getattr(state, "last_auto_backup", 0)
+    if state.wagers_since_backup >= 25 or elapsed >= 900:
+        try:
+            backups.backup_database(settings.db_path, settings.backup_dir, reason="autosave")
+        except Exception:  # never let a backup hiccup interrupt the till
+            logger = __import__("logging").getLogger("horse_race")
+            logger.exception("auto-save backup failed")
+        state.wagers_since_backup = 0
+        state.last_auto_backup = time.time()
+
+
 def _order_partial(request: Request, session: Session, tournament, cart: dict):
     """Render just the Order card — the HTMX swap target on add/remove so the
     player search box keeps its focus, text and scroll (no full page reload)."""
@@ -261,6 +283,7 @@ def checkout(request: Request, session: Session = Depends(get_session), received
         "reference": reference, "entries": entries, "total_cents": total,
         "customer": customer.name if customer else "",
     }
+    _maybe_autosave(request, entries)
     flash(request, f"Recorded {entries} entrie(s) — {cents_to_dollars(total)}. Reference {reference}. Ready for the next customer.")
     return RedirectResponse("/cashier", status_code=303)
 

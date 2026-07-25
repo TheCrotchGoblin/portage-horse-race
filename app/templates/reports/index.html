@@ -13,9 +13,14 @@
       <p class="text-muted small mb-0">One ZIP with the reconciliation, all spreadsheets, the audit log,
         a configuration snapshot and a database backup — the permanent record of this event. Save it somewhere safe (e.g. a USB drive).</p>
     </div>
-    <form method="post" action="/reports/settlement-package">
-      <button class="btn btn-brand btn-lg"><i class="bi bi-download me-2"></i>Create settlement package</button>
-    </form>
+    <div class="d-flex flex-column gap-2">
+      <form method="post" action="/reports/settlement-package/save">
+        <button class="btn btn-brand btn-lg w-100"><i class="bi bi-usb-drive me-2"></i>Save settlement package…</button>
+      </form>
+      <form method="post" action="/reports/settlement-package">
+        <button class="btn btn-outline-brand btn-sm w-100"><i class="bi bi-download me-1"></i>Or download it</button>
+      </form>
+    </div>
   </div>
 </div>
 

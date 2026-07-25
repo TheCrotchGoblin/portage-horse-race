@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.models import Payout, Placement, Team
 from app.models.enums import PayoutStatus
-from app.routes.deps import base_context
+from app.routes.deps import base_context, get_active_tournament
 from app.services import dashboard as dashboard_service
 from app.services import event_package
 from app.services import exports as export_service
@@ -166,6 +166,36 @@ def settlement_package(request: Request, session: Session = Depends(get_session)
         return RedirectResponse("/setup/new", status_code=303)
     path = event_package.build_settlement_package(session, tournament, request.app.state.settings)
     return FileResponse(path, filename=path.name, media_type="application/zip")
+
+
+@router.post("/settlement-package/save")
+def settlement_package_save(request: Request, session: Session = Depends(get_session)):
+    """Build the package and let the user save it straight to a USB/folder (BKP-04)."""
+    import shutil
+    from pathlib import Path
+
+    from app import native
+    from app.templating import flash
+
+    tournament = get_active_tournament(session)
+    if tournament is None:
+        return RedirectResponse("/setup/new", status_code=303)
+    window = native.get_window(request)
+    path = event_package.build_settlement_package(session, tournament, request.app.state.settings)
+    if window is None:
+        # No native window (browser): fall back to a normal download.
+        return FileResponse(path, filename=path.name, media_type="application/zip")
+    dest = native.pick_save_path(window, default_name=path.name)
+    if not dest:
+        flash(request, f"Settlement package saved in {path.parent}.")
+        return RedirectResponse("/reports", status_code=303)
+    try:
+        shutil.copyfile(path, dest)
+    except OSError as exc:
+        flash(request, f"Could not save there — {exc}. It's still in {path.parent}.", "danger")
+        return RedirectResponse("/reports", status_code=303)
+    flash(request, f"Settlement package saved to {dest}. Keep it somewhere safe (e.g. a USB drive).")
+    return RedirectResponse("/reports", status_code=303)
 
 
 @router.get("/export/{kind}")

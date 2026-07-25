@@ -90,15 +90,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     first_run = not settings.db_path.exists()
     create_all()  # idempotent; safe on every start until Alembic baseline lands
     _check_pin_reset(settings)
+
+    # Crash detection: a marker file is written on startup and removed on a clean
+    # shutdown. If it's still there next time, the last run ended unexpectedly.
+    marker = settings.data_dir / "running.flag"
+    recovered_unclean = marker.exists() and not first_run
+    try:
+        marker.write_text(str(__version__))
+    except OSError:
+        pass
+
     if not first_run:
         _integrity_check(settings)
         backups.backup_database(settings.db_path, settings.backup_dir, reason="startup")
         logger.info("Startup backup complete")
+        if recovered_unclean:
+            logger.warning("Previous run did not shut down cleanly — integrity check above confirms the data.")
     else:
         logger.info("First run — initialised new database at %s", settings.db_path)
 
-    app = FastAPI(title=APP_NAME, version=__version__)
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def lifespan(_app):  # remove the crash marker on a clean shutdown
+        yield
+        try:
+            marker.unlink()
+        except OSError:  # pragma: no cover - best effort
+            pass
+
+    app = FastAPI(title=APP_NAME, version=__version__, lifespan=lifespan)
     app.state.settings = settings
+    app.state.recovered_unclean = recovered_unclean
+    app.state.window = None
+    import time as _time
+    app.state.wagers_since_backup = 0
+    app.state.last_auto_backup = _time.time()
 
     app.add_middleware(SessionMiddleware, secret_key=settings.session_secret(), same_site="lax")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

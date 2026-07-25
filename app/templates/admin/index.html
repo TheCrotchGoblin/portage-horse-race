@@ -74,21 +74,39 @@
     <div class="card shadow-sm mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
         <strong>Backups</strong>
-        <form method="post" action="/admin/backup"><button class="btn btn-brand btn-sm"><i class="bi bi-cloud-arrow-down me-1"></i>Back up now</button></form>
+        <span class="d-flex gap-1">
+          <form method="post" action="/admin/backup-to-usb"><button class="btn btn-outline-brand btn-sm"><i class="bi bi-usb-drive me-1"></i>Copy to USB…</button></form>
+          <form method="post" action="/admin/backup"><button class="btn btn-brand btn-sm"><i class="bi bi-cloud-arrow-down me-1"></i>Back up now</button></form>
+        </span>
       </div>
       <div class="card-body">
         <div class="alert {{ 'alert-secondary' if last_backup else 'alert-warning' }} py-2 small">
           {% if last_backup %}Last backup: <strong>{{ last_backup | datetime }}</strong>{% else %}No backups yet.{% endif %}
         </div>
-        <p class="small text-muted">Backups are created automatically at startup and after major events.
+        <p class="small text-muted">Backups are created automatically at startup, during selling and after major events.
           They are saved in:<br><code>{{ backup_dir }}</code></p>
+
+        <div class="d-flex gap-2 mb-2 flex-wrap">
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#restore-file">
+            <i class="bi bi-box-arrow-in-down me-1"></i>Restore from a file (USB / Downloads)…</button>
+        </div>
+        <div class="collapse mb-2" id="restore-file">
+          <form method="post" action="/admin/restore-from-file" class="card card-body border-danger"
+                data-confirm="Restore from a file you choose? Your current data will be replaced (a safety copy is kept).">
+            {% if has_pin %}<input class="form-control form-control-sm mb-1" name="admin_pin" placeholder="Admin PIN">{% endif %}
+            <button class="btn btn-sm btn-danger">Choose a backup file and restore…</button>
+            {% if not native_dialogs %}<div class="form-text">Tip: in a browser this opens the backups folder path instead — copy the file there first.</div>{% endif %}
+          </form>
+        </div>
+
         <table class="table table-sm">
-          <thead><tr><th>Backup file</th><th class="text-end">Size</th><th>Restore</th></tr></thead>
+          <thead><tr><th>Backup file</th><th class="text-end">Size</th><th>Verified</th><th>Restore</th></tr></thead>
           <tbody>
             {% for b in backups %}
             <tr>
               <td class="small">{{ b.name }}</td>
               <td class="text-end small">{{ b.size_kb }} KB</td>
+              <td>{% if b.verified %}<span class="badge bg-success"><i class="bi bi-check-lg"></i> OK</span>{% else %}<span class="badge bg-danger">Failed</span>{% endif %}</td>
               <td>
                 <button class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#r-{{ loop.index }}">Restore</button>
                 <div class="collapse mt-1" id="r-{{ loop.index }}">
@@ -102,7 +120,7 @@
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="3" class="text-muted text-center">No backups yet.</td></tr>
+            <tr><td colspan="4" class="text-muted text-center">No backups yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

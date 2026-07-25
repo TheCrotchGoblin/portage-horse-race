@@ -9,6 +9,14 @@
   </div>
 </div>
 
+{% if recovered_unclean %}
+  <div class="alert alert-info d-flex align-items-center">
+    <i class="bi bi-shield-check me-2 fs-5"></i>
+    <span>The app didn't close normally last time — but your data is intact (the startup integrity
+      check passed and a fresh backup was taken). Carry on.</span>
+  </div>
+{% endif %}
+
 {% if board.warnings %}
   <div class="alert alert-warning">
     <ul class="mb-0">{% for w in board.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
